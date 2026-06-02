@@ -63,9 +63,18 @@
 
       <div class="map-tools" aria-label="マップ操作">
         <button id="homeBtn" type="button">母星</button>
+        <button id="allMapBtn" type="button">全域</button>
         <button id="zoomInBtn" type="button">＋</button>
         <button id="zoomOutBtn" type="button">−</button>
       </div>
+
+      <nav id="sideMenu" class="side-menu" aria-label="銀河メニュー">
+        <button data-page="empire" type="button">帝国</button>
+        <button data-page="tech" type="button">技術</button>
+        <button data-page="factions" type="button">勢力</button>
+        <button data-page="codex" type="button">説明</button>
+        <button data-page="log" type="button">ログ</button>
+      </nav>
 
       <section id="coach" class="coach-card" aria-live="polite">
         <div>
@@ -80,13 +89,6 @@
 
       <section id="bottomSheet" class="bottom-sheet" aria-label="操作パネル">
         <button id="sheetToggle" class="sheet-grip" type="button" aria-label="操作パネルを開閉"></button>
-        <nav class="bottom-tabs" aria-label="表示切り替え">
-          <button class="tab is-active" data-tab="system" type="button">星</button>
-          <button class="tab" data-tab="empire" type="button">帝国</button>
-          <button class="tab" data-tab="tech" type="button">技術</button>
-          <button class="tab" data-tab="factions" type="button">勢力</button>
-          <button class="tab" data-tab="log" type="button">ログ</button>
-        </nav>
         <div id="panelBody" class="panel-body"></div>
         <div class="turn-actions">
           <button id="helpBtn" class="ghost-btn" type="button">遊び方</button>

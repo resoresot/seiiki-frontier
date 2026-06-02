@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SAVE_KEY = 'seiiki-frontier-save-v5-mobile';
+  const SAVE_KEY = 'seiiki-frontier-save-v6-mobile';
   const AS = 'assets/img/';
   const PLANET_TYPES = {
     terran:{name:'豊穣星', img:'terran', yields:{materials:8,research:4,influence:5,energy:3,food:8,crystal:1,credits:4}},
@@ -74,10 +74,11 @@
   let state = null;
   let selectedDoctrine = 'tech';
   let activeTab = 'system';
+  let modalPage = null;
   let images = {};
   let rng = null;
   let canvas, ctx;
-  let camera = {x:.5,y:.5,zoom:2.05};
+  let camera = {x:.5,y:.5,zoom:1.25};
   let drag = {active:false,moved:false,startX:0,startY:0,lastX:0,lastY:0};
   let replayIndex = 0;
 
@@ -200,33 +201,65 @@
       factions[i+1].home = id;
       systems.push({id,name:`${CPU_NAMES[i]}母星`,type:a.type,x:a.x,y:a.y,links:[],owner:fid,explored:true,level:1,pop:4,defense:16,homeOf:fid});
     });
-    while(systems.length < 32){
+    while(systems.length < 54){
       const id = systems.length;
-      let x=.08+rng.next()*.84, y=.12+rng.next()*.78;
-      if(Math.hypot(x-.5,y-.5) < .12) continue;
+      let x=.035+rng.next()*.93, y=.065+rng.next()*.87;
+      if(Math.hypot(x-.5,y-.5) < .105) continue;
       systems.push({id,name:NAMES[id % NAMES.length],type:rng.pick(PLANET_KEYS),x,y,links:[],owner:null,explored:false,level:0,pop:0,defense:rng.int(5,16),homeOf:null});
     }
-    // Connect by nearest neighbors, then guarantee tutorial path.
+    // Connect by nearest neighbors, then add a light backbone so no system is isolated.
     systems.forEach(s => {
       const nearest = systems.filter(o => o.id !== s.id).sort((a,b) => dist(s,a)-dist(s,b)).slice(0,3);
       nearest.forEach(n => connect(systems, s.id, n.id));
     });
     connect(systems, 0, 1); connect(systems, 0, 2);
+    systems.slice().sort((a,b)=>a.x-b.x).forEach((s,i,arr) => { if(i>0) connect(systems, s.id, arr[i-1].id); });
     // Ensure CPU homes are connected to local clusters and not isolated.
     factions.slice(1).forEach(f => {
       const h = systems[f.home];
-      systems.filter(s => s.id !== h.id).sort((a,b)=>dist(h,a)-dist(h,b)).slice(0,4).forEach(n => connect(systems,h.id,n.id));
+      systems.filter(s => s.id !== h.id).sort((a,b)=>dist(h,a)-dist(h,b)).slice(0,5).forEach(n => connect(systems,h.id,n.id));
     });
-    return {version:5, seed, turn:1, ap:3, maxAp:3, selectedId:0, systems, factions, logs:[], tutorial:{active:true,step:0}, replay:[], victory:null, sheetCollapsed:false};
+    ensureConnectivity(systems);
+    return {version:6, seed, turn:1, ap:3, maxAp:3, selectedId:0, systems, factions, logs:[], tutorial:{active:true,step:0}, replay:[], victory:null, sheetCollapsed:false};
   }
   function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
   function connect(systems,a,b){ if(!systems[a].links.includes(b)) systems[a].links.push(b); if(!systems[b].links.includes(a)) systems[b].links.push(a); }
+  function componentFrom(systems, startId, seen=new Set()){
+    const stack=[startId];
+    while(stack.length){
+      const id=stack.pop();
+      if(seen.has(id)) continue;
+      seen.add(id);
+      (systems[id]?.links || []).forEach(n => { if(!seen.has(n)) stack.push(n); });
+    }
+    return seen;
+  }
+  function ensureConnectivity(systems){
+    let seen = componentFrom(systems, 0, new Set());
+    while(seen.size < systems.length){
+      const outside = systems.filter(s => !seen.has(s.id));
+      let best=null;
+      outside.forEach(o => {
+        systems.filter(i => seen.has(i.id)).forEach(i => {
+          const d=dist(o,i);
+          if(!best || d < best.d) best={a:o.id,b:i.id,d};
+        });
+      });
+      if(!best) break;
+      connect(systems,best.a,best.b);
+      seen = componentFrom(systems, 0, new Set());
+    }
+  }
+  function galaxyIsConnected(){
+    if(!state) return false;
+    return componentFrom(state.systems, 0, new Set()).size === state.systems.length;
+  }
 
   function startNew(){
     const seed = $('seedInput').value.trim() || randomSeedText();
     state = createGame(seed, selectedDoctrine);
     activeTab = 'system';
-    camera = {x:.5,y:.5,zoom:2.15};
+    camera = {x:.5,y:.5,zoom:1.32};
     addLog(`銀河シード「${seed}」で${DOCTRINES[selectedDoctrine].name}が始動。`, 'good');
     showScreen('game');
     save();
@@ -239,13 +272,13 @@
       state = JSON.parse(raw);
       normalizeState();
       activeTab = 'system';
-      camera = state.camera || {x: system(player().home).x, y: system(player().home).y, zoom:2.1};
+      camera = state.camera || {x: system(player().home).x, y: system(player().home).y, zoom:1.32};
       showScreen('game');
       render();
     }catch(e){ alert('セーブデータを読み込めませんでした。'); }
   }
   function normalizeState(){
-    if(!state.version) state.version = 5;
+    if(!state.version || state.version < 6) state.version = 6;
     state.factions.forEach(f => { f.ships ||= {scout:1,frigate:0,destroyer:0,carrier:0}; f.upgrades ||= {weapons:0,shields:0,engines:0}; f.techs ||= []; f.eliminated ||= false; });
     state.logs ||= [];
     state.replay ||= [];
@@ -425,10 +458,11 @@
     $('apValue').textContent = `AP ${state.ap}/${state.maxAp}`;
     const bar = $('resourceBar'); bar.innerHTML = '';
     const p = player();
+    const income = totalIncome('P');
     RESOURCE_ORDER.forEach(k => {
       const r = RESOURCES[k];
       const btn = document.createElement('button'); btn.type='button'; btn.className='resource-chip'; btn.setAttribute('aria-label',`${r.label}の説明`);
-      btn.innerHTML = `<img src="${icon(r.icon)}" alt=""><small>${r.label}</small><b>${fmt(p.resources[k])}</b>`;
+      btn.innerHTML = `<img src="${icon(r.icon)}" alt=""><small>${r.label}</small><b>${fmt(p.resources[k])}</b><em>+${fmt(income[k]||0)}/T</em>`;
       btn.onclick = () => showResourceHelp(k);
       bar.appendChild(btn);
     });
@@ -441,14 +475,16 @@
     $('coachKicker').textContent = data[0]; $('coachTitle').textContent = data[1]; $('coachText').textContent = data[2];
   }
   function renderPanel(){
-    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('is-active', b.dataset.tab === activeTab));
     $('bottomSheet').classList.toggle('is-collapsed', !!state.sheetCollapsed);
     $('endTurnBtn').disabled = !tutorialAllows('endTurn');
-    if(activeTab === 'system') renderSystemPanel();
-    else if(activeTab === 'empire') renderEmpirePanel();
-    else if(activeTab === 'tech') renderTechPanel();
-    else if(activeTab === 'factions') renderFactionsPanel();
-    else renderLogPanel();
+    renderSystemPanel();
+  }
+
+  function bindActionButtons(root){
+    root.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => {
+      handleAction(btn.dataset.action, btn.dataset.arg);
+      if(modalPage && $('infoModal').open) setTimeout(() => openMobilePage(modalPage, true), 0);
+    }));
   }
 
   function renderSystemPanel(){
@@ -459,12 +495,11 @@
     const visibility = s.explored || s.owner;
     let html = `<section class="panel-section"><h2>${visibility ? s.name : '未探索星系'}</h2>`;
     html += `<div class="mini-grid"><div class="stat-card"><small>種類</small><b>${visibility ? type.name : '不明'}</b></div><div class="stat-card"><small>支配</small><b>${owner ? owner.name.replace('あなたの','あなたの<br>') : '中立'}</b></div><div class="stat-card"><small>開発Lv</small><b>${s.level}</b></div><div class="stat-card"><small>防衛</small><b>${s.defense}</b></div></div>`;
-    if(visibility) html += `<p style="margin-top:10px">毎ターン産出：${yieldText(s)}</p>`;
+    if(visibility) html += `<p style="margin-top:8px">毎ターン産出：${yieldText(s)}</p>`;
     html += `</section>`;
     html += `<section class="panel-section"><h3>できること</h3><div class="action-list">${actionButtonsHtml(s)}</div></section>`;
-    html += `<section class="panel-section"><h3>考え方</h3><p>${systemAdvice(s)}</p></section>`;
     body.innerHTML = html;
-    body.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => handleAction(btn.dataset.action, btn.dataset.arg)));
+    bindActionButtons(body);
   }
   function yieldText(s){
     const y = systemYield(s);
@@ -511,8 +546,8 @@
     return 'まだ自領とつながっていません。隣接する星を先に探索・植民して、ここまで航路を伸ばしましょう。';
   }
 
-  function renderEmpirePanel(){
-    const p=player(), fs=fleetStats(p), body=$('panelBody');
+  function empireHtml(){
+    const p=player(), fs=fleetStats(p);
     const prod = totalIncome('P');
     let html = `<section class="panel-section"><h2>あなたの帝国</h2><div class="mini-grid"><div class="stat-card"><small>星系</small><b>${owned('P').length}</b></div><div class="stat-card"><small>総合戦力</small><b>${fs.power}</b></div><div class="stat-card"><small>攻撃</small><b>${fs.attack}</b></div><div class="stat-card"><small>シールド</small><b>${fs.shield}</b></div></div><p style="margin-top:10px">毎ターン収入：${Object.entries(prod).filter(([,v])=>v>0).map(([k,v])=>`${RESOURCES[k].label}+${v}`).join(' / ')}</p></section>`;
     html += `<section class="panel-section"><h3>艦船を建造</h3>`;
@@ -524,33 +559,51 @@
       html += `<div class="ship-row"><img src="${icon(u.icon)}" alt=""><div><b>${u.name} Lv.${p.upgrades[id]}</b><span>${u.text}<br>${costText(upgradeCost(id))}</span></div><button class="pill ${canPay(upgradeCost(id))&&state.ap>0?'good':''}" data-action="upgrade" data-arg="${id}" type="button">強化</button></div>`;
     });
     html += `</section>`;
-    body.innerHTML = html;
-    body.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => handleAction(btn.dataset.action, btn.dataset.arg)));
+    return html;
   }
-  function renderTechPanel(){
-    const p=player(), body=$('panelBody');
-    let html = `<section class="panel-section"><h2>技術ツリー</h2><p>研究を消費して、以後の探索・開発・植民・勝利条件を強化します。</p></section>`;
+  function techHtml(){
+    const p=player();
+    const doctrineName = DOCTRINES[p.doctrine]?.name || p.doctrine;
+    let html = `<section class="panel-section"><h2>技術ツリー</h2><p>研究を消費して、探索・開発・植民・艦隊・勝利条件を強化します。現在の方針は <b>${doctrineName}</b> です。銀行などの方針専用技術は、該当方針を選んだ時だけ表示されます。</p></section>`;
     availableTechs('P').forEach(t => {
       const bought = p.techs.includes(t.id);
       const locked = (t.req||[]).some(req => !p.techs.includes(req));
       const can = !bought && !locked && p.resources.research >= t.cost && state.ap > 0 && tutorialAllows('research');
       html += `<div class="tech-card"><img src="${icon(t.icon)}" alt=""><div><b>${t.name}</b><span>${t.text}<br>研究${t.cost}${t.req?` / 前提: ${t.req.map(id=>TECHS.find(x=>x.id===id)?.name).join('・')}`:''}</span></div><button class="pill ${bought?'you':can?'good':locked?'bad':''}" data-action="research" data-arg="${t.id}" type="button" ${bought||locked?'disabled':''}>${bought?'取得済':locked?'未解放':'研究'}</button></div>`;
     });
-    body.innerHTML = html;
-    body.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => handleAction(btn.dataset.action, btn.dataset.arg)));
+    html += `<section class="panel-section"><h3>方針専用技術の例</h3><p>商業国家なら「星間銀行」「開拓勅許」「銀河市場」、軍事国家なら「軍港網」「降下軍団」、技術国家なら「光子演算炉」などが出ます。これはターン経過ではなく、最初に選んだ文明方針で変わります。</p></section>`;
+    return html;
   }
-  function renderFactionsPanel(){
-    const body=$('panelBody');
+  function factionsHtml(){
     let html = `<section class="panel-section"><h2>勢力</h2><p>勢力カードを押すと、母星・保有星・艦隊・技術の状況が見られます。</p></section>`;
     state.factions.forEach(f => {
       const fs=fleetStats(f), home=system(f.home);
       html += `<button class="faction-card" data-faction="${f.id}" type="button"><img src="${factionImage(f)}" alt=""><div><b>${f.name}${f.id==='P'?'（あなた）':''}</b><span>${home?.name || '母星なし'} / 星系${owned(f.id).length} / 戦力${fs.power}<br>${fleetText(f)}</span></div><span class="pill ${f.id==='P'?'you':''}">${f.eliminated?'滅亡':'詳細'}</span></button>`;
     });
-    body.innerHTML = html;
-    body.querySelectorAll('[data-faction]').forEach(btn => btn.addEventListener('click', () => showFactionDetail(btn.dataset.faction)));
+    return html;
   }
-  function renderLogPanel(){
-    $('panelBody').innerHTML = `<section class="panel-section"><h2>銀河ログ</h2>${state.logs.map(l => `<div class="log-line ${l.tone}">T${l.turn}: ${l.text}</div>`).join('') || '<p class="empty">まだログはありません。</p>'}</section>`;
+  function logHtml(){
+    return `<section class="panel-section"><h2>銀河ログ</h2>${state.logs.map(l => `<div class="log-line ${l.tone}">T${l.turn}: ${l.text}</div>`).join('') || '<p class="empty">まだログはありません。</p>'}</section>`;
+  }
+  function codexHtml(){
+    const planetRows = Object.entries(PLANET_TYPES).map(([id,p]) => `<div class="planet-line"><img src="${imgPath('planets',p.img)}" alt=""><p><b>${p.name}</b><br>${Object.entries(p.yields).filter(([,v])=>v>0).map(([k,v])=>`${RESOURCES[k].label}+${v}`).join(' / ')}</p></div>`).join('');
+    const techRows = TECHS.map(t => `<li><b>${t.name}</b>：${t.text}${t.doctrine?`（${DOCTRINES[t.doctrine]?.name}専用）`:''}</li>`).join('');
+    return `<section class="panel-section"><h2>説明書</h2><p>このゲームは、毎ターン得る資源を「拡張」「研究」「艦隊」にどう振るかを選ぶ宇宙ストラテジーです。</p></section><div class="codex-list"><details open><summary>勝利条件</summary><ul><li><b>支配勝利</b>：全星系の60%以上を保有。</li><li><b>技術勝利</b>：自文明方針の最終技術を取得。</li><li><b>覇権勝利</b>：CPU勢力の母星を制圧。</li></ul></details><details open><summary>行動とAP</summary><ul><li>探索：自領に隣接する「？」の正体を調べる。</li><li>植民：探索済みの中立星を自領にする。</li><li>開発：自領星の毎ターン産出・防衛を伸ばす。</li><li>研究：研究を消費して長期の勝ち筋を作る。</li><li>艦隊：艦船建造・武器/シールド/推進強化で侵攻力を上げる。</li></ul></details><details><summary>星の種類と産出</summary>${planetRows}</details><details><summary>技術と解放</summary><p>基本技術は全方針共通です。銀行などは商業国家専用で、ターン経過ではなく最初に選んだ方針で表示内容が変わります。</p><ul>${techRows}</ul></details><details><summary>マップ</summary><p>星域は全体がつながるよう生成されます。右上の「全域」で広く見渡し、「母星」で戻れます。ドラッグで上下左右へ移動できます。</p></details></div>`;
+  }
+
+  function renderEmpirePanel(){ $('panelBody').innerHTML = empireHtml(); bindActionButtons($('panelBody')); }
+  function renderTechPanel(){ $('panelBody').innerHTML = techHtml(); bindActionButtons($('panelBody')); }
+  function renderFactionsPanel(){ $('panelBody').innerHTML = factionsHtml(); bindFactionButtons($('panelBody')); }
+  function renderLogPanel(){ $('panelBody').innerHTML = logHtml(); }
+  function bindFactionButtons(root){ root.querySelectorAll('[data-faction]').forEach(btn => btn.addEventListener('click', () => showFactionDetail(btn.dataset.faction))); }
+  function openMobilePage(page, refresh=false){
+    modalPage = page;
+    const title = {empire:'帝国', tech:'技術', factions:'勢力', codex:'説明書', log:'ログ'}[page] || '情報';
+    const html = page === 'empire' ? empireHtml() : page === 'tech' ? techHtml() : page === 'factions' ? factionsHtml() : page === 'codex' ? codexHtml() : logHtml();
+    showModal(`<h2>${title}</h2>${html}`, true);
+    const body = $('modalBody');
+    bindActionButtons(body);
+    bindFactionButtons(body);
   }
 
   function handleAction(action,arg){
@@ -661,7 +714,7 @@
     growOwned('P');
     const events = cpuTurn();
     state.turn++; state.ap = state.maxAp;
-    if(state.tutorial.active && state.tutorial.step === 2){ state.tutorial.step = 3; state.selectedId=1; centerOn(system(1), 2.15); // guarantee turn-2 colonization resources
+    if(state.tutorial.active && state.tutorial.step === 2){ state.tutorial.step = 3; state.selectedId=1; centerOn(system(1), 1.45); // guarantee turn-2 colonization resources
       addRes({materials:28,influence:16,food:8}, 'P');
     }else if(state.tutorial.active && state.tutorial.step === 5){ state.tutorial.active=false; state.tutorial.step=99; addLog('チュートリアル完了。ここからは自由に戦略を選べます。', 'good'); }
     state.replay = events;
@@ -743,28 +796,34 @@
   function showApHelp(){
     showModal(`<h2>APとは？</h2><p>APは「このターンにできる大きな行動回数」です。探索、植民、開発、研究、艦船建造、艦隊強化、侵攻で1ずつ使います。</p><ul><li>ターン終了で全回復します。</li><li>序盤は毎ターン3APです。</li><li>技術「星域司令部」を取るとAPが増えます。</li></ul><p>APをどこに使うかが、このゲームの一番大事な判断です。</p>`);
   }
-  function showHelp(){
-    showModal(`<h2>遊び方</h2><h3>基本</h3><p>星をタップして、状況に合う行動を選びます。自領に隣接する未探索星は探索、探索済みの中立星は植民、自領星は開発できます。</p><h3>スマホ操作</h3><ul><li>マップをドラッグ：上下左右に移動</li><li>＋／−：ズーム</li><li>資源チップ：使い道と増やし方</li><li>勢力タブ：CPUや自分の詳細</li></ul><h3>戦略</h3><p>資源を領土拡大に使うか、研究に使うか、艦隊に使うかを毎ターン選びます。CPUもターン終了後に成長します。</p>`);
-  }
+  function showHelp(){ openMobilePage('codex'); }
   function showFactionDetail(fid){
+    modalPage = null;
     const f=faction(fid), fs=fleetStats(f), home=system(f.home);
     const prod=totalIncome(fid);
-    showModal(`<h2>${f.name}${fid==='P'?'（あなた）':''}</h2><div class="help-grid"><div><h3>母星</h3><p>${home?.name || 'なし'}</p></div><div><h3>勢力タイプ</h3><p>${DOCTRINES[f.doctrine]?.name || f.doctrine}</p></div><div><h3>保有星系</h3><p>${owned(fid).length}星系</p></div><div><h3>艦隊</h3><p>${fleetText(f)}<br>総合${fs.power} / 攻撃${fs.attack} / シールド${fs.shield}</p></div><div><h3>強化</h3><p>武器Lv.${f.upgrades.weapons} / シールドLv.${f.upgrades.shields} / 推進Lv.${f.upgrades.engines}</p></div><div><h3>毎ターン収入</h3><p>${Object.entries(prod).filter(([,v])=>v>0).map(([k,v])=>`${RESOURCES[k].label}+${v}`).join(' / ') || 'なし'}</p></div></div>`);
+    showModal(`<h2>${f.name}${fid==='P'?'（あなた）':''}</h2><div class="help-grid"><div><h3>母星</h3><p>${home?.name || 'なし'}</p></div><div><h3>勢力タイプ</h3><p>${DOCTRINES[f.doctrine]?.name || f.doctrine}</p></div><div><h3>保有星系</h3><p>${owned(fid).length}星系</p></div><div><h3>艦隊</h3><p>${fleetText(f)}<br>総合${fs.power} / 攻撃${fs.attack} / シールド${fs.shield}</p></div><div><h3>強化</h3><p>武器Lv.${f.upgrades.weapons} / シールドLv.${f.upgrades.shields} / 推進Lv.${f.upgrades.engines}</p></div><div><h3>毎ターン収入</h3><p>${Object.entries(prod).filter(([,v])=>v>0).map(([k,v])=>`${RESOURCES[k].label}+${v}`).join(' / ') || 'なし'}</p></div></div>`, true);
   }
-  function showModal(html){ $('modalBody').innerHTML = html; $('infoModal').showModal(); }
-  function toast(text){ showModal(`<h2>操作できません</h2><p>${text}</p>`); }
+  function showModal(html, page=false){
+    const dialog = $('infoModal');
+    $('infoModal').querySelector('.modal-card').classList.toggle('page', !!page);
+    $('modalBody').innerHTML = html;
+    if(!dialog.open) dialog.showModal();
+  }
+  function toast(text){ modalPage=null; showModal(`<h2>操作できません</h2><p>${text}</p>`); }
 
   function bind(){
     $('startBtn').onclick=startNew; $('continueBtn').onclick=continueGame;
     $('randomSeedBtn').onclick=()=>{$('seedInput').value=randomSeedText();};
-    $('homeBtn').onclick=()=>centerOn(system(player().home),2.15);
-    $('zoomInBtn').onclick=()=>{ camera.zoom=clamp(camera.zoom*1.18,1.2,4.4); draw(); };
-    $('zoomOutBtn').onclick=()=>{ camera.zoom=clamp(camera.zoom/1.18,1.2,4.4); draw(); };
+    $('homeBtn').onclick=()=>centerOn(system(player().home),1.45);
+    $('allMapBtn').onclick=()=>{ camera={x:.5,y:.5,zoom:.78}; draw(); };
+    $('zoomInBtn').onclick=()=>{ camera.zoom=clamp(camera.zoom*1.18,.65,4.4); draw(); };
+    $('zoomOutBtn').onclick=()=>{ camera.zoom=clamp(camera.zoom/1.18,.65,4.4); draw(); };
     $('helpBtn').onclick=showHelp; $('turnChip').onclick=showApHelp; $('saveBtn').onclick=()=>{save(); toast('保存しました。次回は「続きから」で再開できます。');};
-    $('endTurnBtn').onclick=endTurn; $('modalClose').onclick=()=>$('infoModal').close();
+    $('endTurnBtn').onclick=endTurn; $('modalClose').onclick=()=>{ modalPage=null; $('infoModal').close(); };
     $('coachSkipBtn').onclick=()=>{ state.tutorial.active=false; state.tutorial.step=99; render(); };
     $('sheetToggle').onclick=()=>{ state.sheetCollapsed=!state.sheetCollapsed; renderPanel(); save(); };
     document.querySelectorAll('.tab').forEach(b => b.onclick=()=>{ activeTab=b.dataset.tab; state.sheetCollapsed=false; renderPanel(); });
+    document.querySelectorAll('#sideMenu [data-page]').forEach(b => b.onclick=()=>openMobilePage(b.dataset.page));
     canvas=$('starCanvas');
     canvas.addEventListener('pointerdown', canvasPointerDown);
     canvas.addEventListener('pointermove', canvasPointerMove);
@@ -781,6 +840,8 @@
     select: (id) => { if(state){ state.selectedId=id; const s=system(id); if(s) advanceTutorialOnSelect(s); render(); } },
     action: handleAction,
     endTurn,
-    center: (id) => centerOn(system(id), 2.15)
+    center: (id) => centerOn(system(id), 1.45),
+    connected: () => galaxyIsConnected(),
+    totalSystems: () => state?.systems.length || 0
   };
 })();
