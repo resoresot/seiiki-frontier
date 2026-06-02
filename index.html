@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#071222" />
+  <meta name="description" content="星域フロンティアは、ブラウザだけで遊べるターン制宇宙ストラテジーです。資源を集め、技術を伸ばし、星域を拡大し、CPU勢力と銀河の覇権を争います。" />
+  <title>星域フロンティア | ターン制 宇宙ストラテジー</title>
+  <link rel="icon" href="assets/img/favicon.png" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <section id="titleScreen" class="screen screen-title is-active" aria-label="タイトル画面">
+      <div class="title-bg"></div>
+      <div class="title-vignette"></div>
+      <main class="title-card">
+        <p class="eyebrow">Turn Based Space Strategy</p>
+        <h1>星域フロンティア</h1>
+        <p class="lead">資源を伸ばし、技術ツリーを選び、未知の星々を開拓せよ。CPU勢力も同じターンで成長する、1人用の宇宙覇権ゲーム。</p>
+        <div class="start-grid">
+          <section class="setup-panel">
+            <h2>文明方針を選択</h2>
+            <div id="doctrineCards" class="doctrine-cards"></div>
+            <div class="seed-row">
+              <label for="seedInput">銀河シード</label>
+              <input id="seedInput" type="text" maxlength="18" placeholder="空欄ならランダム" autocomplete="off" />
+              <button id="randomSeedBtn" class="ghost-btn" type="button">ランダム</button>
+            </div>
+            <div class="title-actions">
+              <button id="startBtn" class="primary-btn" type="button">新しい銀河を開始</button>
+              <button id="continueBtn" class="secondary-btn" type="button">続きから</button>
+            </div>
+          </section>
+          <aside class="briefing-panel">
+            <h2>勝利条件</h2>
+            <ul>
+              <li><strong>支配勝利</strong>：全星系の60%を保有</li>
+              <li><strong>技術勝利</strong>：最終技術「銀河中枢」を完成</li>
+              <li><strong>覇権勝利</strong>：CPUの母星をすべて制圧</li>
+            </ul>
+            <h2>基本ループ</h2>
+            <p>毎ターン3行動。探索・植民・開発・研究・艦隊建造・侵攻を選び、CPUより早く星域を広げます。</p>
+          </aside>
+        </div>
+      </main>
+    </section>
+
+    <section id="gameScreen" class="screen screen-game" aria-label="ゲーム画面">
+      <canvas id="starCanvas" aria-label="銀河マップ"></canvas>
+      <div class="game-overlay">
+        <header class="topbar">
+          <div class="brand-mini">
+            <span class="brand-orb"></span>
+            <div>
+              <b>星域フロンティア</b>
+              <span id="subtitleLine">銀河生成中</span>
+            </div>
+          </div>
+          <div class="turn-box">
+            <span>Turn</span>
+            <strong id="turnValue">1</strong>
+          </div>
+          <div id="resourceBar" class="resource-bar"></div>
+          <div class="top-actions">
+            <button id="helpBtn" class="ghost-btn compact" type="button">遊び方</button>
+            <button id="tutorialBtn" class="ghost-btn compact" type="button">チュートリアル</button>
+            <button id="homeBtn" class="ghost-btn compact" type="button">母星へ</button>
+            <button id="overviewBtn" class="ghost-btn compact" type="button">全域</button>
+            <button id="saveBtn" class="ghost-btn compact" type="button">保存</button>
+            <button id="newGameBtn" class="ghost-btn compact danger" type="button">新規</button>
+          </div>
+        </header>
+
+        <section id="guidePanel" class="guide-panel panel glass" aria-label="次のおすすめ行動">
+          <div class="guide-head">
+            <span class="guide-kicker">現在の目的</span>
+            <strong id="guideTitle">母星から周辺を探索</strong>
+          </div>
+          <p id="guideText">まずは自分の母星を中心に、隣の未探索星系を調べましょう。</p>
+          <div id="guideActions" class="guide-actions"></div>
+        </section>
+
+        <section id="cpuReplay" class="cpu-replay panel glass" aria-label="CPUターンの行動"></section>
+        <div class="map-hint">ドラッグで星域移動 / ホイールで拡大縮小 / 星をクリックで詳細</div>
+
+        <aside class="left-panel panel glass">
+          <div class="panel-title-row">
+            <h2>帝国状況</h2>
+            <span id="apBadge" class="badge">AP 3/3</span>
+          </div>
+          <div id="empireSummary" class="empire-summary"></div>
+          <h3>技術ツリー</h3>
+          <div id="techList" class="tech-list"></div>
+        </aside>
+
+        <aside class="right-panel panel glass">
+          <div class="panel-title-row">
+            <h2>星系詳細</h2>
+            <span id="selectedBadge" class="badge muted">未選択</span>
+          </div>
+          <div id="systemDetails" class="system-details empty">星をクリックして詳細を表示</div>
+          <div id="actionButtons" class="action-buttons"></div>
+          <h3>勢力</h3>
+          <div id="factionList" class="faction-list"></div>
+        </aside>
+
+        <footer class="log-panel panel glass">
+          <div class="panel-title-row slim"><h2>銀河ログ</h2><button id="endTurnBtn" class="primary-btn small" type="button">ターン終了</button></div>
+          <div id="eventLog" class="event-log"></div>
+        </footer>
+      </div>
+    </section>
+
+    <dialog id="modal" class="modal">
+      <div class="modal-card glass">
+        <button id="modalClose" class="modal-close" aria-label="閉じる">×</button>
+        <div id="modalBody"></div>
+      </div>
+    </dialog>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>
