@@ -447,6 +447,18 @@ html,body{-webkit-text-size-adjust:100%;}
 .codex-list details{overflow:hidden}.codex-list details[open]{max-height:62svh;overflow:auto;-webkit-overflow-scrolling:touch}.codex-table{max-width:100%;}
 @media (max-width:390px){.tech-map-v14{grid-template-columns:48px repeat(5,104px);min-width:568px}.tech-cell{width:104px;padding:5px 4px}.tech-mini-node{min-height:40px}.tech-mini-node b{font-size:9px}.tech-mini-node span{font-size:7.3px}.tech-branch-head b{font-size:10px}.modal-card{padding:13px!important}.tech-map-v14-wrap{max-height:56svh}}
 
+/* tutorial pulse highlight */
+@keyframes tutorial-pulse{
+  0%,100%{box-shadow:0 0 0 3px rgba(110,231,255,.45),0 0 14px rgba(110,231,255,.25)}
+  50%{box-shadow:0 0 0 7px rgba(110,231,255,.7),0 0 28px rgba(110,231,255,.45)}
+}
+.tutorial-glow{
+  animation:tutorial-pulse 1.2s ease-in-out infinite!important;
+  border-color:rgba(110,231,255,.85)!important;
+  position:relative;
+  z-index:22;
+}
+
 /* v15: readable compact research tree + scroll-safe research details */
 .modal-card.page.research-page{
   width:96vw!important;
