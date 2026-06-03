@@ -239,3 +239,160 @@ body.is-game .bottom-sheet{height:22dvh!important;min-height:160px!important;max
 .tech-lane-label{position:absolute;left:8px;height:22px;line-height:22px;padding:0 8px;border:1px solid rgba(160,210,255,.16);border-radius:999px;background:rgba(8,19,39,.92);color:var(--muted);font-size:10px;font-weight:900;z-index:3;pointer-events:none;}.tech-tier-label{position:absolute;top:10px;width:146px;text-align:center;color:var(--gold);font-size:11px;font-weight:900;letter-spacing:.08em;z-index:3;}
 .tech-map-node{position:absolute;z-index:4;border:1px solid rgba(160,210,255,.22);border-radius:15px;background:linear-gradient(180deg,rgba(10,24,48,.96),rgba(5,12,25,.96));box-shadow:0 8px 22px rgba(0,0,0,.35);padding:8px;display:grid;grid-template-rows:auto 1fr auto auto;gap:3px;overflow:hidden;}.tech-map-node.done{border-color:rgba(105,240,164,.9);box-shadow:0 0 0 2px rgba(105,240,164,.16),0 8px 22px rgba(0,0,0,.35);}.tech-map-node.can{border-color:rgba(110,231,255,.9);box-shadow:0 0 0 2px rgba(110,231,255,.16),0 8px 22px rgba(0,0,0,.35);}.tech-map-node.locked{opacity:.58;filter:grayscale(.35);}.tech-map-node header{display:grid;grid-template-columns:24px 1fr;gap:5px;align-items:center;min-width:0;}.tech-map-node img{width:24px;height:24px;object-fit:contain;}.tech-map-node b{font-size:11px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.tech-map-node p{margin:0;font-size:9px!important;line-height:1.25!important;color:#cfe4fa;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}.tech-map-node small{font-size:8px;color:var(--muted);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.tech-map-node .pill{font-size:9px;padding:5px 6px;border-radius:10px;justify-self:stretch;}
 @media (max-width:390px){.tech-map-wrap{max-height:70dvh}.tech-map-node{padding:7px}.tech-map-node b{font-size:10px}.tech-map-node p{font-size:8.5px!important}.tech-map-node small{font-size:7.5px}}
+
+/* v12: single detailed explanation page and readable research tree map */
+body.is-game .turn-actions{
+  grid-template-columns:.82fr 1.18fr!important;
+}
+body.is-game .turn-actions #saveBtn,
+body.is-game .turn-actions #endTurnBtn{
+  min-height:48px!important;
+}
+.modal-card.page.research-page{
+  width:96vw!important;
+  max-width:none!important;
+  height:90svh!important;
+  max-height:90svh!important;
+  padding:14px!important;
+}
+.modal-card.page.research-page #modalBody{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+.modal-card.page.research-page > h2,
+.modal-card.page.research-page .modal-close{
+  flex:0 0 auto;
+}
+.modal-card.page.research-page .tech-intro{
+  flex:0 0 auto;
+  margin-bottom:8px!important;
+  padding:10px!important;
+}
+.modal-card.page.research-page .tech-intro h2{
+  font-size:16px!important;
+}
+.modal-card.page.research-page .tech-intro p{
+  font-size:12px!important;
+  line-height:1.5!important;
+}
+.tech-legend{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+.tech-legend span{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:10px;
+  font-weight:900;
+  border:1px solid rgba(160,210,255,.18);
+  background:rgba(255,255,255,.055);
+}
+.tech-legend .done{color:#08160e;background:linear-gradient(135deg,var(--green),#c8ffdd)}
+.tech-legend .can{color:#06111f;background:linear-gradient(135deg,var(--cyan),#b8e5ff)}
+.tech-legend .locked{color:#c9d6e6;background:rgba(255,255,255,.045)}
+.modal-card.page.research-page .tech-map-wrap{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:auto!important;
+  touch-action:pan-x pan-y!important;
+  border-radius:18px!important;
+  overscroll-behavior:contain!important;
+}
+.tech-map{
+  position:relative!important;
+  min-width:0!important;
+  background-size:238px 160px!important;
+}
+.tech-lane-band{
+  position:absolute;
+  left:0;
+  right:0;
+  border-top:1px solid rgba(160,210,255,.08);
+  border-bottom:1px solid rgba(160,210,255,.08);
+  background:linear-gradient(90deg,rgba(110,231,255,.035),rgba(255,255,255,.012));
+  pointer-events:none;
+  z-index:1;
+}
+.tech-tier-label{
+  top:16px!important;
+  width:184px!important;
+  height:26px!important;
+  line-height:26px!important;
+  border:1px solid rgba(255,211,122,.22);
+  border-radius:999px;
+  background:rgba(8,19,39,.94);
+  color:var(--gold)!important;
+  z-index:6!important;
+}
+.tech-lane-label{
+  position:absolute!important;
+  left:10px!important;
+  height:26px!important;
+  line-height:26px!important;
+  padding:0 10px!important;
+  border-radius:999px!important;
+  color:#eaf4ff!important;
+  background:rgba(8,19,39,.96)!important;
+  border:1px solid rgba(110,231,255,.28)!important;
+  z-index:7!important;
+}
+.tech-edges{z-index:2!important;}
+.tech-map-node{
+  z-index:5!important;
+  padding:9px!important;
+  border-radius:15px!important;
+  grid-template-rows:auto 1fr auto auto!important;
+  overflow:hidden!important;
+}
+.tech-map-node header{
+  grid-template-columns:26px 1fr!important;
+  gap:6px!important;
+}
+.tech-map-node img{
+  width:26px!important;
+  height:26px!important;
+}
+.tech-map-node b{
+  font-size:12px!important;
+  line-height:1.15!important;
+}
+.tech-map-node p{
+  font-size:9.5px!important;
+  line-height:1.32!important;
+  -webkit-line-clamp:3!important;
+}
+.tech-map-node small{
+  font-size:8.5px!important;
+  line-height:1.2!important;
+}
+.tech-node-footer{
+  display:grid;
+  grid-template-columns:auto 72px;
+  gap:6px;
+  align-items:center;
+  margin-top:1px;
+}
+.tech-node-footer span{
+  font-size:9px;
+  color:var(--gold);
+  font-weight:900;
+  white-space:nowrap;
+}
+.tech-node-footer .pill{
+  width:100%;
+  min-height:28px;
+  font-size:9px!important;
+  padding:5px 4px!important;
+}
+.codex-table{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid rgba(160,210,255,.16);border-radius:14px;background:rgba(255,255,255,.035);}
+.codex-table table{border-collapse:collapse;min-width:680px;width:100%;font-size:12px;}
+.codex-table th,.codex-table td{border-bottom:1px solid rgba(160,210,255,.10);padding:8px;text-align:left;vertical-align:top;}
+.codex-table th{color:#fff;background:rgba(8,19,39,.92);}
+.codex-list details p,.codex-list details li{font-size:13px!important;line-height:1.62!important;}

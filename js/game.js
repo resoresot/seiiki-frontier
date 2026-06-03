@@ -1,9 +1,9 @@
 (() => {
   'use strict';
 
-  const SAVE_KEY = 'seiiki-frontier-save-v11';
+  const SAVE_KEY = 'seiiki-frontier-save-v12';
   const AS = 'assets/img/';
-  const VERSION = 11;
+  const VERSION = 12;
 
   const RESOURCES = {
     materials:{label:'資材', icon:'materials', use:'開発、植民、艦船建造、防衛施設に使う基礎資源。', gain:'鉱物系の惑星・衛星・小惑星帯を開発すると増えます。', advice:'序盤は足りなくなりやすいです。植民直後は維持費で赤字になりやすいので、開発を重ねて黒字化しましょう。'},
@@ -565,9 +565,9 @@
     2:['チュートリアル 2/9','衛星へ植民','「植民」を押してAPを1使います。植民直後は維持費で赤字になりやすいです。'],
     3:['チュートリアル 3/9','植民地を開発','「開発」を押してAPを1使います。これで1ターン目の3APを使い切ります。'],
     4:['ターン1完了','ターン終了','APを使い切りました。「ターン終了」で資源収入とCPU行動を見ましょう。'],
-    5:['チュートリアル 4/9','研究を使う','右の「技術」から「星系測量」を研究してください。別惑星の探索が解放されます。'],
-    6:['チュートリアル 5/9','艦船を建造','右の「帝国」からフリゲートを建造してください。戦力は艦船の数と種類で決まります。'],
-    7:['チュートリアル 6/9','艦隊を強化','同じ帝国画面で「武器」を強化してください。攻める艦隊の相性にも関わります。'],
+    5:['チュートリアル 4/9','研究を使う','右の「研究」から「星系測量」を研究してください。別惑星の探索が解放されます。'],
+    6:['チュートリアル 5/9','艦船を建造','右の「艦隊」からフリゲートを建造してください。戦力は艦船の数と種類で決まります。'],
+    7:['チュートリアル 6/9','艦隊を強化','同じ艦隊画面で「武器」を強化してください。攻める艦隊の相性にも関わります。'],
     8:['ターン2完了','ターン終了','2ターン目の3APも使い切りました。ターン終了で次へ進みます。'],
     9:['チュートリアル 7/9','別惑星を選ぶ','星系測量で、同じ恒星系内の惑星を探索できるようになりました。近くの別惑星を選んでください。'],
     10:['チュートリアル 7/9','惑星を探索','「探索」を押します。惑星は衛星より育てる価値がありますが、維持費も重くなります。'],
@@ -743,40 +743,102 @@
   }
   function techHtml(){
     const p=player();
-    const all=availableTechs('P').slice().sort((a,b)=>(a.tier-b.tier)||(a.cost-b.cost)||a.name.localeCompare(b.name,'ja'));
-    const techById=Object.fromEntries(all.map(t=>[t.id,t]));
+    const all=availableTechs('P').slice().sort((a,b)=>(a.tier-b.tier)||(techBranch(a).localeCompare(techBranch(b)))||(a.cost-b.cost)||a.name.localeCompare(b.name,'ja'));
     const branches=[
       ['explore','探索・植民'],['industry','工業・資材'],['science','研究・演算'],['warp','恒星・ワープ'],
       ['military','艦隊・侵攻'],['defense','防衛'],['economy','交易・信用'],['bio','人口・生態'],['void','遺物・虚空'],['final','最終']
     ];
+    const tiers=[1,2,3,4,5];
     const branchIndex=Object.fromEntries(branches.map((b,i)=>[b[0],i]));
-    const counts={}; const pos={};
-    const colW=168,rowH=138,nodeW=146,nodeH=92,left=18,top=54;
-    all.forEach(t=>{ const key=`${t.tier}:${techBranch(t)}`; const slot=counts[key]||0; counts[key]=slot+1; pos[t.id]={x:left+(t.tier-1)*colW,y:top+(branchIndex[techBranch(t)]??2)*rowH+slot*(nodeH+10),w:nodeW,h:nodeH}; });
-    const width=Math.max(760,left+(Math.max(...all.map(t=>t.tier))+1)*colW);
-    const height=Math.max(880,Math.max(...Object.values(pos).map(p=>p.y+p.h+50)));
+    const groups={};
+    all.forEach(t=>{
+      const b=techBranch(t), tier=t.tier||1;
+      const key=`${b}:${tier}`;
+      (groups[key] ||= []).push(t);
+    });
+
+    const nodeW=184, nodeH=116, colW=238, laneGap=34, nodeGap=12, left=112, tierTop=18;
+    const laneMeta={};
+    let cursorY=64;
+    branches.forEach(([b,label])=>{
+      const maxSlots=Math.max(1,...tiers.map(t=>(groups[`${b}:${t}`]||[]).length));
+      const laneH=42 + maxSlots*(nodeH+nodeGap) + laneGap;
+      laneMeta[b]={y:cursorY,h:laneH,label,maxSlots};
+      cursorY += laneH;
+    });
+    const pos={};
+    all.forEach(t=>{
+      const b=techBranch(t), tier=t.tier||1;
+      const group=groups[`${b}:${tier}`]||[];
+      const slot=group.findIndex(x=>x.id===t.id);
+      pos[t.id]={
+        x:left+(tier-1)*colW,
+        y:laneMeta[b].y+36+slot*(nodeH+nodeGap),
+        w:nodeW,
+        h:nodeH
+      };
+    });
+    const width=left+tiers.length*colW+34;
+    const height=cursorY+24;
     const done=all.filter(t=>p.techs.includes(t.id)).length;
-    let html=`<section class="panel-section"><h2>研究ツリーマップ</h2><p>横に進むほど高位技術です。緑は取得済み、青は今研究可能、灰色は前提不足です。線がつながっている経路が、あなたが有効化してきた研究ルートです。</p><div class="tech-progress"><b>${done}/${all.length}</b><span>取得済み</span></div></section>`;
+    const canCount=all.filter(t=>!p.techs.includes(t.id) && (t.req||[]).every(r=>p.techs.includes(r)) && p.resources.research>=t.cost).length;
+    let html=`<section class="panel-section tech-intro"><h2>研究ツリーマップ</h2><p>横方向が段階、縦方向が研究分野です。緑は取得済み、青は今すぐ研究可能、灰色は前提不足です。線をたどると、どの研究ルートを有効化してきたかがわかります。</p><div class="tech-progress"><b>${done}/${all.length}</b><span>取得済み</span><b>${canCount}</b><span>研究可能</span></div><div class="tech-legend"><span class="done">取得済み</span><span class="can">研究可能</span><span class="locked">前提不足</span></div></section>`;
     html+=`<div class="tech-map-wrap"><div class="tech-map" style="width:${width}px;height:${height}px">`;
     html+=`<svg class="tech-edges" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true">`;
-    all.forEach(t=>{ (t.req||[]).forEach(r=>{ if(!pos[r] || !pos[t.id]) return; const a=pos[r], b=pos[t.id]; const boughtReq=p.techs.includes(r), bought=p.techs.includes(t.id); const active=boughtReq && !bought && (t.req||[]).every(x=>p.techs.includes(x)); const cls=boughtReq&&bought?'done':active?'active':'locked'; const x1=a.x+a.w, y1=a.y+a.h/2, x2=b.x, y2=b.y+b.h/2, mx=(x1+x2)/2; html+=`<path class="tech-edge ${cls}" d="M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}"/>`; }); });
+    all.forEach(t=>{
+      (t.req||[]).forEach(r=>{
+        if(!pos[r] || !pos[t.id]) return;
+        const a=pos[r], b=pos[t.id];
+        const boughtReq=p.techs.includes(r), bought=p.techs.includes(t.id);
+        const active=boughtReq && !bought && (t.req||[]).every(x=>p.techs.includes(x));
+        const cls=boughtReq&&bought?'done':active?'active':'locked';
+        const x1=a.x+a.w, y1=a.y+a.h/2, x2=b.x, y2=b.y+b.h/2, mx=(x1+x2)/2;
+        html+=`<path class="tech-edge ${cls}" d="M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}"/>`;
+      });
+    });
     html+=`</svg>`;
-    branches.forEach(([id,label],i)=>{ html+=`<div class="tech-lane-label" style="top:${top+i*rowH-28}px">${label}</div>`; });
-    [1,2,3,4,5].forEach(tier=>{ html+=`<div class="tech-tier-label" style="left:${left+(tier-1)*colW}px">T${tier}</div>`; });
-    all.forEach(t=>{ const pp=pos[t.id]; const bought=p.techs.includes(t.id), missing=(t.req||[]).filter(r=>!p.techs.includes(r)), locked=missing.length>0, can=!bought&&!locked&&p.resources.research>=t.cost&&state.ap>0&&tutorialAllows('research',t.id); const reqTxt=(t.req||[]).map(id=>TECHS.find(x=>x.id===id)?.name||id).join('＋'); html+=`<article class="tech-map-node ${bought?'done':locked?'locked':can?'can':'open'}" style="left:${pp.x}px;top:${pp.y}px;width:${pp.w}px;height:${pp.h}px"><header><img src="${icon(t.icon)}" alt=""><b>${t.name}</b></header><p>${t.text}</p><small>研究${t.cost}${reqTxt?` / ${reqTxt}`:''}${missing.length?` / 未: ${missing.map(id=>TECHS.find(x=>x.id)?.name||id).join('・')}`:''}</small><button class="pill ${bought?'you':can?'good':locked?'bad':''}" data-action="research" data-arg="${t.id}" type="button" ${bought||locked?'disabled':''}>${bought?'取得済':locked?'未解放':'研究'}</button></article>`; });
+    branches.forEach(([id,label])=>{
+      const meta=laneMeta[id];
+      html+=`<div class="tech-lane-band" style="top:${meta.y}px;height:${meta.h-laneGap}px"></div>`;
+      html+=`<div class="tech-lane-label" style="top:${meta.y+8}px">${label}</div>`;
+    });
+    tiers.forEach(tier=>{ html+=`<div class="tech-tier-label" style="left:${left+(tier-1)*colW}px">T${tier}</div>`; });
+    all.forEach(t=>{
+      const pp=pos[t.id];
+      const bought=p.techs.includes(t.id), missing=(t.req||[]).filter(r=>!p.techs.includes(r)), locked=missing.length>0, can=!bought&&!locked&&p.resources.research>=t.cost&&state.ap>0&&tutorialAllows('research',t.id);
+      const reqTxt=(t.req||[]).map(id=>TECHS.find(x=>x.id===id)?.name||id).join('＋');
+      const missingTxt=missing.map(id=>TECHS.find(x=>x.id)?.name||id).join('・');
+      html+=`<article class="tech-map-node ${bought?'done':locked?'locked':can?'can':'open'}" style="left:${pp.x}px;top:${pp.y}px;width:${pp.w}px;height:${pp.h}px"><header><img src="${icon(t.icon)}" alt=""><b>${t.name}</b></header><p>${t.text}</p><small>${reqTxt?`前提: ${reqTxt}`:'前提なし'}${missing.length?` / 不足: ${missingTxt}`:''}</small><div class="tech-node-footer"><span>研究 ${t.cost}</span><button class="pill ${bought?'you':can?'good':locked?'bad':''}" data-action="research" data-arg="${t.id}" type="button" ${bought||locked?'disabled':''}>${bought?'取得済':locked?'未解放':'研究'}</button></div></article>`;
+    });
     return html+`</div></div>`;
   }
   function factionsHtml(){ const rows=[['総合',f=>factionScore(f.id)],['保有',f=>owned(f.id).length],['技術',f=>f.techs.length],['艦隊',f=>fleetStats(f).power],['攻撃',f=>fleetStats(f).attack],['防御',f=>fleetStats(f).shield],['収入',f=>RESOURCE_ORDER.reduce((a,k)=>a+(totalIncome(f.id)[k]||0),0)],['恒星',f=>`${f.charge||0}/${f.maxCharge||1}`],['状態',f=>f.eliminated?'敗退':f.id==='P'?'あなた':'活動']]; let html=`<section class="panel-section"><h2>勢力比較</h2><p>横にスワイプして各帝国を比較できます。総合は保有・収入・研究・艦隊を合算した目安です。</p></section><div class="faction-matrix"><table><thead><tr><th>項目</th>${state.factions.map(f=>`<th><button data-faction="${f.id}" type="button"><img src="${factionImage(f)}" alt=""><b>${f.id==='P'?'あなた':f.name}</b></button></th>`).join('')}</tr></thead><tbody>${rows.map(([label,fn])=>`<tr><td>${label}</td>${state.factions.map(f=>`<td class="${f.eliminated?'bad':f.id==='P'?'you':''}">${fn(f)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; return html; }
   function logHtml(){ return `<section class="panel-section"><h2>銀河ログ</h2>${state.logs.map(l=>`<div class="log-line ${l.tone}">T${l.turn}: ${l.text}</div>`).join('')||'<p class="empty">まだログはありません。</p>'}</section>`; }
-  function codexHtml(){ const planetRows=Object.entries(BODY_TYPES).map(([id,p])=>`<div class="planet-line"><img src="${imgPath('planets',p.img)}" alt=""><p><b>${p.name}</b><br>${p.note}<br>${Object.entries(p.yields).map(([k,v])=>`${RESOURCES[k].label}+${v}`).join(' / ')}</p></div>`).join(''); const techRows=TECHS.map(t=>`<li><b>${t.name}</b>：${t.text}${t.doctrine?`（${DOCTRINES[t.doctrine]?.name}専用）`:''}</li>`).join(''); return `<section class="panel-section"><h2>説明書</h2><p>5つの恒星系があり、各勢力の母星は惑星です。最初は母星の衛星まで、研究後に同じ恒星系の別惑星、さらに恒星チャージとワープで敵星系へ進みます。</p></section><div class="codex-list"><details open><summary>勝利条件</summary><ul><li>支配勝利：全天体の60%以上を保有。</li><li>技術勝利：方針別または共通の最終技術を取得。</li><li>覇権勝利：CPU勢力の母星をすべて制圧。</li></ul></details><details open><summary>植民地と維持費</summary><p>植民直後の惑星は人口維持で食料・電力・資材が赤字になりがちです。開発Lvを上げて黒字化してから拡張すると安定します。</p></details><details><summary>恒星とワープ侵攻</summary><p>恒星ハーネスで恒星チャージ、ワープ航法で敵星系へ侵攻できます。侵攻では艦船構成、武器/シールド/推進、相手の防衛施設タイプが効きます。</p></details><details><summary>星の種類</summary>${planetRows}</details><details><summary>研究ツリー</summary><ul>${techRows}</ul></details></div>`; }
+  function codexHtml(){
+    const planetRows=Object.entries(BODY_TYPES).map(([id,p])=>`<div class="planet-line"><img src="${imgPath('planets',p.img)}" alt=""><p><b>${p.name}</b><br>${p.note}<br><small>${Object.entries(p.yields).map(([k,v])=>`${RESOURCES[k].label}${signFmt(v)}`).join(' / ')}</small></p></div>`).join('');
+    const resourceRows=RESOURCE_ORDER.map(k=>`<tr><td>${RESOURCES[k].label}</td><td>${RESOURCES[k].use}</td><td>${RESOURCES[k].gain}</td></tr>`).join('');
+    const branches=[['探索・植民','衛星→同一恒星系の別惑星→敵星系へ、という行動範囲を広げる枝。'],['工業・資材','開発費を下げ、植民地を黒字化しやすくする枝。'],['研究・演算','研究産出と高位研究の前提を作る枝。'],['恒星・ワープ','恒星チャージと星系間侵攻を解放する枝。'],['艦隊・侵攻','艦船建造、攻撃力、母星攻略力を伸ばす枝。'],['防衛','惑星ごとの防衛施設やシールドを伸ばす枝。'],['交易・信用','信用収入と不足資源の補助を強める枝。'],['人口・生態','食料・人口・維持費改善で長期成長する枝。'],['遺物・虚空','結晶、遺跡、特殊ワープを伸ばす枝。']].map(([a,b])=>`<li><b>${a}</b>：${b}</li>`).join('');
+    const finalTechs=TECHS.filter(t=>t.final).map(t=>`<li><b>${t.name}</b>：${t.text}</li>`).join('');
+    return `<section class="panel-section"><h2>説明</h2><p>この画面は、ゲーム全体の説明書です。迷ったら右側の「説明」を開いてください。下の操作パネルには説明ボタンを置かず、星の操作・保存・ターン終了だけにしています。</p></section><div class="codex-list">
+      <details open><summary>まず何をするゲーム？</summary><p>小さな母星から始め、APを使って探索・植民・開発・研究・艦隊建造を選びます。序盤は母星周辺の衛星を取り、中盤は研究で同一恒星系の別惑星へ広げ、終盤は恒星チャージとワープ航法で敵帝国の恒星系へ進みます。</p></details>
+      <details open><summary>勝利条件</summary><ul><li><b>支配勝利</b>：全天体の60%以上を保有します。</li><li><b>技術勝利</b>：研究ツリーの最終技術を完成させます。</li><li><b>覇権勝利</b>：CPU勢力の母星をすべて制圧します。母星を落とされた帝国は敗退し、残りの保有天体は接収されます。</li></ul></details>
+      <details open><summary>ターンとAP</summary><p>APは1ターンに実行できる主要行動数です。探索、植民、開発、研究、艦船建造、艦隊強化、恒星チャージ、侵攻で1AP使います。ターン終了で資源収入が入り、CPU勢力も成長・研究・拡張します。</p></details>
+      <details><summary>資源の使い道</summary><div class="codex-table"><table><thead><tr><th>資源</th><th>使い道</th><th>増やし方</th></tr></thead><tbody>${resourceRows}</tbody></table></div></details>
+      <details><summary>星系・天体・開発</summary><p>各勢力は1つの恒星系を持ち、その中に恒星、母星、衛星、惑星、小惑星帯などがあります。母星は帝国の中核、恒星は星系間移動用のエネルギー充填拠点です。植民直後の天体は人口維持で赤字になりやすく、開発Lvを上げて初めて安定収入になります。</p>${planetRows}</details>
+      <details><summary>研究ツリーの読み方</summary><p>右側の「研究」を開くとツリーマップが出ます。横方向がT1からT5への段階、縦方向が研究分野です。緑の線は取得済みルート、青の線は次に進めるルート、灰色は前提不足です。複数前提が必要な研究もあるので、一本だけでなく複数の枝を組み合わせるのが重要です。</p><ul>${branches}</ul></details>
+      <details><summary>艦隊と戦闘</summary><p>艦隊は偵察艇、フリゲート、駆逐艦、空母で構成されます。総合戦力だけでなく、攻撃力、シールド、武器Lv、シールドLv、推進Lv、相手惑星の防衛施設タイプが戦闘結果に影響します。母星攻略には艦隊だけでなく、ワープ航法と恒星チャージも必要です。</p></details>
+      <details><summary>研究分野と最終技術</summary><p>研究は内政・探索・防衛・艦隊・ワープ・経済などに分かれます。方針別の最終技術や共通最終技術に到達すると技術勝利です。</p><ul>${finalTechs}</ul></details>
+      <details><summary>よくある詰まり</summary><ul><li>探索できない：母星の衛星以外は「星系測量」などの研究が必要な場合があります。</li><li>資源が増えない：植民直後は維持費で赤字になることがあります。開発で黒字化してください。</li><li>敵に攻め込めない：「恒星ハーネス」「ワープ航法」と恒星チャージが必要です。</li><li>研究できない：研究資源、AP、前提技術を確認してください。</li></ul></details>
+    </div>`;
+  }
   function bindFactionButtons(root){ root.querySelectorAll('[data-faction]').forEach(btn=>btn.addEventListener('click',()=>showFactionDetail(btn.dataset.faction))); }
-  function openMobilePage(page){ modalPage=page; const title={empire:'艦隊',tech:'研究',factions:'勢力比較',codex:'説明書',log:'ログ'}[page]||'情報'; const html=page==='empire'?empireHtml():page==='tech'?techHtml():page==='factions'?factionsHtml():page==='codex'?codexHtml():logHtml(); showModal(`<h2>${title}</h2>${html}`,true); bindActionButtons($('modalBody')); bindFactionButtons($('modalBody')); }
+  function openMobilePage(page){ modalPage=page; const title={empire:'艦隊',tech:'研究',factions:'勢力比較',codex:'説明',log:'ログ'}[page]||'情報'; const html=page==='empire'?empireHtml():page==='tech'?techHtml():page==='factions'?factionsHtml():page==='codex'?codexHtml():logHtml(); showModal(`<h2>${title}</h2>${html}`,true); bindActionButtons($('modalBody')); bindFactionButtons($('modalBody')); }
 
   function showResourceHelp(k){ const r=RESOURCES[k], inc=totalIncome('P')[k]||0; showModal(`<h2>${r.label}</h2><div class="help-grid"><div><h3>何に使う？</h3><p>${r.use}</p></div><div><h3>どう増える？</h3><p>${r.gain}</p></div><div><h3>現在の収入</h3><p>毎ターン ${signFmt(inc)}。植民地の維持費でマイナスになることもあります。</p></div><div><h3>戦略メモ</h3><p>${r.advice}</p></div></div>`); }
   function showApHelp(){ showModal(`<h2>APとは？</h2><p>APは1ターンにできる主要行動数です。探索・植民・開発・研究・艦船建造・艦隊強化・恒星チャージ・侵攻で1ずつ使います。</p><p>序盤は3AP。技術「星域兵站」で4APになります。</p>`); }
   function showHelp(){ openMobilePage('codex'); }
   function showFactionDetail(fid){ const f=faction(fid), fs=fleetStats(f), prod=totalIncome(fid), home=system(f.home), star=system(f.star); showModal(`<h2>${f.name}${fid==='P'?'（あなた）':''}</h2><div class="help-grid"><div><h3>状態</h3><p>${f.eliminated?'敗退済み':'活動中'}</p></div><div><h3>母星</h3><p>${home?.name||'なし'}</p></div><div><h3>恒星</h3><p>${star?.name||'なし'} / 充填${f.charge}/${f.maxCharge}</p></div><div><h3>保有</h3><p>${owned(fid).length}天体</p></div><div><h3>艦隊</h3><p>${fleetText(f)}<br>総合${fs.power} / 攻撃${fs.attack} / シールド${fs.shield}</p></div><div><h3>収入</h3><p>${RESOURCE_ORDER.filter(k=>prod[k]).map(k=>`${RESOURCES[k].label}${signFmt(prod[k])}`).join(' / ')||'なし'}</p></div></div>`,true); }
-  function showModal(html,page=false){ const dialog=$('infoModal'); $('infoModal').querySelector('.modal-card').classList.toggle('page',!!page); $('modalBody').innerHTML=html; if(!dialog.open) dialog.showModal(); }
+  function showModal(html,page=false){ const dialog=$('infoModal'); const card=$('infoModal').querySelector('.modal-card'); card.classList.toggle('page',!!page); card.classList.toggle('research-page', modalPage==='tech'); $('modalBody').innerHTML=html; if(!dialog.open) dialog.showModal(); }
   function toast(text){ modalPage=null; showModal(`<h2>操作できません</h2><p>${text}</p>`); }
 
   function checkVictory(){ if(!state||state.victory) return; const p=player(); if(owned('P').length>=Math.ceil(state.systems.length*.6)) return setVictory('支配勝利','全天体の60%以上を支配しました。'); if(p.techs.some(id=>TECHS.find(t=>t.id===id)?.final)) return setVictory('技術勝利','最終技術を完成しました。'); if(state.factions.filter(f=>f.id!=='P').every(f=>f.eliminated||owned(f.id).length===0)) return setVictory('覇権勝利','CPU勢力の母星をすべて制圧しました。'); }
@@ -785,7 +847,7 @@
   function bind(){
     $('startBtn').onclick=startNew; $('continueBtn').onclick=continueGame; $('randomSeedBtn').onclick=()=>{$('seedInput').value=randomSeedText();};
     $('homeBtn').onclick=()=>centerOn(system(player().home),1.8); $('allMapBtn').onclick=fullMap; $('zoomInBtn').onclick=()=>{camera.zoom=clamp(camera.zoom*1.18,.65,5); draw();}; $('zoomOutBtn').onclick=()=>{camera.zoom=clamp(camera.zoom/1.18,.65,5); draw();};
-    $('helpBtn').onclick=showHelp; $('turnChip').onclick=showApHelp; $('saveBtn').onclick=()=>{save(); toast('保存しました。次回は「続きから」で再開できます。');}; $('endTurnBtn').onclick=endTurn; $('modalClose').onclick=()=>{modalPage=null; $('infoModal').close();}; $('sheetToggle').onclick=()=>{state.sheetCollapsed=!state.sheetCollapsed; renderPanel(); save();};
+    const hb=$('helpBtn'); if(hb) hb.onclick=showHelp; $('turnChip').onclick=showApHelp; $('saveBtn').onclick=()=>{save(); toast('保存しました。次回は「続きから」で再開できます。');}; $('endTurnBtn').onclick=endTurn; $('modalClose').onclick=()=>{modalPage=null; $('infoModal').close();}; $('sheetToggle').onclick=()=>{state.sheetCollapsed=!state.sheetCollapsed; renderPanel(); save();};
     document.querySelectorAll('#sideMenu [data-page]').forEach(b=>b.onclick=()=>openMobilePage(b.dataset.page));
     canvas=$('starCanvas');
     canvas.addEventListener('pointerdown',canvasPointerDown,{passive:false}); canvas.addEventListener('pointermove',canvasPointerMove,{passive:false}); canvas.addEventListener('pointerup',canvasPointerUp); canvas.addEventListener('pointercancel',canvasPointerCancel); canvas.addEventListener('lostpointercapture',canvasPointerCancel);
