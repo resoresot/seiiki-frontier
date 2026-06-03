@@ -396,3 +396,27 @@ body.is-game .turn-actions #endTurnBtn{
 .codex-table th,.codex-table td{border-bottom:1px solid rgba(160,210,255,.10);padding:8px;text-align:left;vertical-align:top;}
 .codex-table th{color:#fff;background:rgba(8,19,39,.92);}
 .codex-list details p,.codex-list details li{font-size:13px!important;line-height:1.62!important;}
+
+
+/* v13: compact research map, readable dark UI, resource popups */
+.modal-card, .modal-card *{color:#eaf4ff}
+.modal-card p,.modal-card li,.modal-card td,.modal-card small{color:#d9ecff}
+.modal-card h2,.modal-card h3,.panel-section h2,.panel-section h3{color:#ffffff}
+.tech-map-wrap.compact-map{overflow:auto;-webkit-overflow-scrolling:touch;max-height:62dvh;border:1px solid rgba(142,202,255,.22);border-radius:18px;background:rgba(2,8,18,.72)}
+.tech-map.compact-tree{position:relative;min-width:720px;background:radial-gradient(circle at 20% 20%,rgba(110,231,255,.10),transparent 38%),rgba(3,10,24,.64)}
+.tech-map-node.compact-node{position:absolute;display:grid;grid-template-rows:auto 1fr auto;gap:1px;border:1px solid rgba(150,205,255,.22);border-radius:12px;background:rgba(8,18,38,.94);padding:6px;text-align:left;box-shadow:0 8px 18px rgba(0,0,0,.28);overflow:hidden}
+.tech-map-node.compact-node b{font-size:10px;line-height:1.15;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tech-map-node.compact-node span{font-size:8.5px;line-height:1.15;color:#cfe4fa;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tech-map-node.compact-node em{font-style:normal;font-size:9px;color:#7ff7ff;font-weight:900}
+.tech-map-node.compact-node.done{border-color:rgba(105,240,164,.92);background:rgba(9,48,34,.96)}
+.tech-map-node.compact-node.can{border-color:rgba(110,231,255,.94);box-shadow:0 0 0 2px rgba(110,231,255,.16),0 8px 18px rgba(0,0,0,.3)}
+.tech-map-node.compact-node.locked{opacity:.72;background:rgba(20,22,34,.9);border-color:rgba(180,190,210,.16)}
+.tech-lane-label{font-size:10px!important;color:#9fefff!important;writing-mode:vertical-rl;text-orientation:mixed;left:6px!important;letter-spacing:.05em;background:rgba(4,14,30,.74);border-radius:10px;padding:6px 3px;border:1px solid rgba(110,231,255,.16)}
+.tech-tier-label{position:absolute;top:8px;font-size:10px;color:#ffd37a;font-weight:900}
+.tech-edge{fill:none;stroke-width:2;opacity:.72}.tech-edge.done{stroke:#69f0a4}.tech-edge.active{stroke:#6ee7ff;stroke-dasharray:5 4}.tech-edge.locked{stroke:#8aa0bb;stroke-dasharray:3 5;opacity:.35}
+.modal-resource-ribbon{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:8px 0 10px}
+.modal-resource-ribbon span{display:grid;grid-template-columns:18px 1fr;grid-template-rows:auto auto;gap:0 3px;border:1px solid rgba(142,202,255,.18);border-radius:10px;background:rgba(255,255,255,.055);padding:5px 4px;align-items:center;min-width:0}
+.modal-resource-ribbon img{grid-row:1/3;width:18px;height:18px;object-fit:contain}.modal-resource-ribbon b{font-size:11px;color:#fff}.modal-resource-ribbon em{font-size:9px;color:#69f0a4;font-style:normal;font-weight:900}
+.req-list{margin:0;padding-left:1.2em}.req-list li{margin:5px 0}.req-list li.ok{color:#b9ffd0}.req-list li.miss{color:#ffd0d0}.req-list small{color:#9eb9d4}.tech-detail-actions{display:grid;grid-template-columns:1fr .8fr;gap:8px;margin-top:10px}.tech-detail-actions button:disabled{opacity:.45;filter:grayscale(.3)}
+.tech-intro.compact p{font-size:12px;line-height:1.45}
+@media (max-width:699px){.info-modal{width:96vw}.modal-card.research-page{padding:14px}.tech-map-wrap.compact-map{max-height:58dvh}.modal-resource-ribbon{grid-template-columns:repeat(7,1fr);gap:3px}.modal-resource-ribbon span{padding:4px 2px}.modal-resource-ribbon img{width:15px;height:15px}.modal-resource-ribbon b{font-size:10px}.modal-resource-ribbon em{font-size:8px}}

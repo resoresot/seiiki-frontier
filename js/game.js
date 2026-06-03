@@ -1,9 +1,9 @@
 (() => {
   'use strict';
 
-  const SAVE_KEY = 'seiiki-frontier-save-v12';
+  const SAVE_KEY = 'seiiki-frontier-save-v13';
   const AS = 'assets/img/';
-  const VERSION = 12;
+  const VERSION = 13;
 
   const RESOURCES = {
     materials:{label:'資材', icon:'materials', use:'開発、植民、艦船建造、防衛施設に使う基礎資源。', gain:'鉱物系の惑星・衛星・小惑星帯を開発すると増えます。', advice:'序盤は足りなくなりやすいです。植民直後は維持費で赤字になりやすいので、開発を重ねて黒字化しましょう。'},
@@ -41,6 +41,12 @@
   const CPU_DOCTRINES = ['machine','eco','war','trade'];
   const CPU_IMAGES = {machine:'machine',eco:'eco',war:'war',trade:'trade'};
   const CPU_NAMES = ['黒曜機構','緑星協約','赤環艦隊','黄昏商圏'];
+  const CPU_PERSONAS = {
+    machine:{title:'冷徹な演算機械', style:'知的・研究先行', bias:'研究と恒星技術を優先し、準備が整うと精密に侵攻する。', quote:'「最適解は既に算出済みだ。遅れた文明から順に整理する。」'},
+    eco:{title:'絡みつく生態同盟', style:'いやらしい持久型', bias:'人口・防衛・食料で粘り、落としにくい植民地を増やす。', quote:'「急がなくていい。根は静かに、だが確実に星を覆う。」'},
+    war:{title:'赤い脳筋艦隊', style:'脳筋・艦隊圧力', bias:'艦船建造と武器強化を優先し、隙を見つけると母星を狙う。', quote:'「研究？防衛？まず殴れば星は黙る。」'},
+    trade:{title:'ずる賢い商圏', style:'信用・横取り型', bias:'信用で不足資源を補い、他勢力の消耗後に一気に伸びる。', quote:'「勝者を決めるのは艦隊ではない。補給線の所有者だ。」'}
+  };
 
   const SHIPS = {
     scout:{name:'偵察艇', icon:'scout', power:6, attack:4, shield:2, cost:{materials:10,energy:2,credits:2}, text:'安価な小型艦。衛星・前哨地への圧力に向く。', role:'screen'},
@@ -195,11 +201,11 @@
 
   const RESOURCE_BASE = {materials:0,research:0,influence:0,energy:0,food:0,crystal:0,credits:0};
   const CLUSTERS = [
-    {id:0, name:'アステル星系', x:.50, y:.52, owner:'P', color:'#6ee7ff'},
-    {id:1, name:'ノクス星系', x:.14, y:.16, owner:'C1', color:'#9fb0ff'},
-    {id:2, name:'エコー星系', x:.86, y:.16, owner:'C2', color:'#70f2a7'},
-    {id:3, name:'ルベル星系', x:.16, y:.84, owner:'C3', color:'#ff7272'},
-    {id:4, name:'アウルム星系', x:.84, y:.84, owner:'C4', color:'#ffd37a'}
+    {id:0, name:'アステル星系', x:.50, y:.50, owner:'P', color:'#6ee7ff'},
+    {id:1, name:'ノクス星系', x:.12, y:.12, owner:'C1', color:'#9fb0ff'},
+    {id:2, name:'エコー星系', x:.88, y:.13, owner:'C2', color:'#70f2a7'},
+    {id:3, name:'ルベル星系', x:.13, y:.88, owner:'C3', color:'#ff7272'},
+    {id:4, name:'アウルム星系', x:.87, y:.87, owner:'C4', color:'#ffd37a'}
   ];
 
   let state = null;
@@ -269,7 +275,7 @@
   }
   const fleetText = (f) => Object.entries(SHIPS).map(([k,s]) => `${s.name}${f.ships?.[k] || 0}`).join(' / ');
   function factionScore(fid){ const f=faction(fid); if(!f) return 0; const prod=totalIncome(fid), fs=fleetStats(f); const resourceScore=RESOURCE_ORDER.reduce((a,k)=>a+(f.resources[k]||0)*0.08+(prod[k]||0)*1.8,0); return Math.round(resourceScore + owned(fid).length*22 + f.techs.length*18 + fs.power*0.75 + (f.charge||0)*18); }
-  function focusNextActionTarget(){ if(!state) return; const target=tutorialTargetSystem() || selectedSystem() || system(player().home); if(target){ state.selectedId=target.id; centerOn(target, Math.max(camera.zoom, 1.65)); } }
+  function focusNextActionTarget(){ if(!state) return; const target=tutorialTargetSystem() || selectedSystem() || system(player().home); if(target){ state.selectedId=target.id; centerOn(target, Math.max(camera.zoom, 1.05)); } }
   function finishReplay(){ state.replay=[]; replayIndex=0; focusNextActionTarget(); render(); }
 
   function preload(){
@@ -319,45 +325,81 @@
   function createGame(seed, doctrine){
     rng = new RNG(seed);
     const factions = [
-      {id:'P', name:'あなたの帝国', doctrine, color:DOCTRINES[doctrine].color, cluster:0, home:null, star:null, resources:{materials:112,research:48,influence:52,energy:58,food:58,crystal:14,credits:48}, charge:0, maxCharge:1, ships:{scout:2,frigate:1,destroyer:0,carrier:0}, upgrades:{weapons:0,shields:0,engines:0}, techs:[], eliminated:false, ai:'player'},
-      ...CPU_NAMES.map((name,i) => ({id:`C${i+1}`, name, doctrine:CPU_DOCTRINES[i], color:['#9fb0ff','#70f2a7','#ff7272','#ffd37a'][i], cluster:i+1, home:null, star:null, resources:{materials:92,research:32,influence:36,energy:48,food:42,crystal:12,credits:38}, charge:0, maxCharge:1, ships:{scout:2,frigate:1,destroyer:0,carrier:0}, upgrades:{weapons:0,shields:0,engines:0}, techs:['survey'], eliminated:false, ai:['research','expand','war','trade'][i] }))
+      {id:'P', name:'あなたの帝国', doctrine, color:DOCTRINES[doctrine].color, cluster:0, home:null, star:null, resources:{materials:118,research:52,influence:56,energy:62,food:64,crystal:16,credits:54}, charge:0, maxCharge:1, ships:{scout:2,frigate:1,destroyer:0,carrier:0}, upgrades:{weapons:0,shields:0,engines:0}, techs:[], eliminated:false, ai:'player', persona:'プレイヤー'},
+      ...CPU_NAMES.map((name,i) => {
+        const doctrine=CPU_DOCTRINES[i];
+        const persona=CPU_PERSONAS[doctrine];
+        return {id:`C${i+1}`, name, doctrine, color:['#9fb0ff','#70f2a7','#ff7272','#ffd37a'][i], cluster:i+1, home:null, star:null, resources:{materials:160,research:82,influence:78,energy:110,food:88,crystal:30,credits:92}, charge:1, maxCharge:2, ships:{scout:3,frigate:2,destroyer:i===2?1:0,carrier:0}, upgrades:{weapons:i===2?1:0,shields:i===1?1:0,engines:0}, techs:['survey','colonyAdmin', i===2?'dock':'orbitalIndustry'].filter(Boolean), eliminated:false, ai:['research','expand','war','trade'][i], persona:persona?.title || ''};
+      })
     ];
     const systems = [];
     CLUSTERS.forEach(c => buildCluster(systems, factions, c));
-    // Faint interstellar route between stars; usable after warp.
+    // Interstellar routes connect stars only. They become operational after warp research.
     const stars = systems.filter(s => s.kind === 'star');
-    stars.forEach((s,i)=>{ stars.slice(i+1).forEach(o => { if(Math.hypot(s.x-o.x,s.y-o.y) < .78) connect(systems,s.id,o.id,'warp'); }); });
-    return {version:VERSION, seed, turn:1, ap:3, maxAp:3, selectedId:2, systems, factions, logs:[], tutorial:{active:true,step:0}, replay:[], victory:null, sheetCollapsed:false};
+    stars.forEach((s,i)=>{ stars.slice(i+1).forEach(o => connect(systems,s.id,o.id,'warp')); });
+    return {version:VERSION, seed, turn:1, ap:3, maxAp:3, selectedId:2, systems, factions, logs:[], tutorial:{active:true,step:0}, replay:[], victory:null, sheetCollapsed:false, milestones:{}};
   }
 
   function buildCluster(systems, factions, c){
     const fid = c.owner;
     const f = factions.find(x => x.id === fid);
-    const id0 = systems.length;
-    const spread = c.id === 0 ? .064 : .072;
-    const types = c.id === 0 ? ['star','home','moon','desert','ice','belt'] : ['star','home','moon', rng.pick(['volcanic','ice','gas','crystal']), rng.pick(['desert','ocean','relic','belt']), rng.pick(['belt','moon','gas'])];
-    const pos = [
-      [0,0], [.050,-.016], [.078,.018], [-.055,.040], [-.030,-.070], [.070,-.066]
-    ];
-    const names = c.id === 0 ? ['アステル恒星','母星アステル','アステル衛星','砂礫のエオス','氷のミラージュ','内縁小惑星帯'] : [`${c.name}恒星`,`${c.name}母星`,`${c.name}衛星`,`${c.name}第一惑星`,`${c.name}外惑星`,`${c.name}資源帯`];
-    for(let i=0;i<6;i++){
+    const starId = systems.length;
+    const isPlayer = fid === 'P';
+    const prefix = c.name.replace('星系','');
+    const planetCount = rng.int(5,10);
+    const occupied = [];
+    const addBody = (body, kind, name, dx, dy, opts={}) => {
       const id = systems.length;
-      const kind = i===0 ? 'star' : i===1 ? 'planet' : i===2 ? 'moon' : i===5 ? 'belt' : 'planet';
-      const owner = i <= 1 ? fid : (fid !== 'P' && i===2 ? fid : null);
-      const explored = owner || fid !== 'P' && i <= 2 ? true : (fid === 'P' && i <= 1);
+      const x = clamp(c.x+dx,.025,.975), y = clamp(c.y+dy,.055,.945);
       systems.push({
-        id, cluster:c.id, name:names[i], body:types[i], kind, x:clamp(c.x+pos[i][0],.035,.965), y:clamp(c.y+pos[i][1],.065,.935), links:[], owner, explored,
-        level:i===1 ? 2 : i===0 ? 1 : owner ? 1 : 0,
-        pop:i===1 ? 5 : owner ? 2 : 0,
-        defense:i===1 ? 24 : i===0 ? 18 : rng ? rng.int(7,16) : 10,
-        defenseType:i===1 ? 'shield' : ['militia','armor','shield','flak'][(id+i)%4],
-        homeOf:i===1 ? fid : null,
-        starOf:i===0 ? fid : null,
-        locked: fid === 'P' && i >= 3
+        id, cluster:c.id, name, body, kind, x, y, links:[],
+        owner:opts.owner||null, explored:!!opts.explored,
+        level:opts.level||0, pop:opts.pop||0,
+        defense:opts.defense ?? rng.int(7,18),
+        defenseType:opts.defenseType || ['militia','armor','shield','flak'][rng.int(0,3)],
+        homeOf:opts.homeOf||null, starOf:opts.starOf||null, parent:opts.parent??null, locked:!!opts.locked
       });
+      occupied.push({x:dx,y:dy,r:opts.r||.038,id});
+      return id;
+    };
+    const star = addBody('star','star',`${prefix}主恒星`,0,0,{owner:fid,explored:true,level:1,defense:22,starOf:fid,r:.050});
+    const home = addBody('home','planet', isPlayer?'母星アステル':`${prefix}母星`, .060, -.012, {owner:fid,explored:true,level:2,pop:5.5,defense:30,defenseType:'shield',homeOf:fid,parent:star,r:.052});
+    connect(systems, star, home, 'orbit');
+    // Tutorial moon and first planet: fixed ids after star/home for player cluster.
+    const tutMoon = addBody('moon','moon', isPlayer?'アステル衛星':`${prefix}衛星`, .090, .030, {owner:(!isPlayer?fid:null), explored:!isPlayer, level:!isPlayer?1:0, pop:!isPlayer?1.2:0, parent:home, r:.030});
+    connect(systems, home, tutMoon, 'orbit');
+    const tutPlanet = addBody(isPlayer?'desert':rng.pick(['desert','ice','ocean','volcanic']),'planet', isPlayer?'砂礫のエオス':`${prefix}第一惑星`, -.085, .060, {owner:null, explored:false, parent:star, locked:isPlayer, r:.046});
+    connect(systems, star, tutPlanet, 'orbit');
+    // Random additional planets, spaced around a large local orbital area.
+    const planetIds=[home,tutPlanet];
+    const planetTypes=['terran','desert','ocean','volcanic','ice','gas','crystal','relic','belt'];
+    for(let i=0;i<planetCount-2;i++){
+      let dx=0,dy=0, ok=false;
+      for(let tries=0; tries<80 && !ok; tries++){
+        const angle = rng.next()*Math.PI*2;
+        const rad = .095 + rng.next()*.135;
+        dx = Math.cos(angle)*rad;
+        dy = Math.sin(angle)*rad;
+        ok = occupied.every(o => Math.hypot(dx-o.x,dy-o.y) > (o.r+.048));
+      }
+      const body = rng.pick(planetTypes);
+      const id = addBody(body, body==='belt'?'belt':'planet', `${prefix}${['外縁','第二','第三','辺境','深層','黎明','黄昏','極光'][i%8]}${body==='belt'?'帯':'惑星'}`, dx, dy, {owner:(!isPlayer && i<2 ? fid : null), explored:(!isPlayer && i<3), level:(!isPlayer && i<2 ? 1 : 0), pop:(!isPlayer && i<2 ? 1.6 : 0), parent:star, locked:isPlayer, r:body==='belt'?.038:.046});
+      planetIds.push(id);
+      connect(systems, star, id, 'orbit');
     }
-    connect(systems,id0,id0+1,'orbit'); connect(systems,id0+1,id0+2,'orbit'); connect(systems,id0,id0+3,'orbit'); connect(systems,id0,id0+4,'orbit'); connect(systems,id0,id0+5,'orbit'); connect(systems,id0+3,id0+5,'orbit');
-    f.star = id0; f.home = id0+1;
+    // Random moons. Moons only connect to their planet; they require parent planet development for later development.
+    planetIds.slice().forEach((pid,idx)=>{
+      const parent=systems[pid];
+      const maxMoons = parent.body==='home' ? 2 : rng.int(0,3);
+      for(let m=0;m<maxMoons;m++){
+        if(isPlayer && parent.id!==home && idx>3 && rng.chance(.35)) continue;
+        const angle = (Math.PI*2)*(m/maxMoons) + rng.next()*.55;
+        const rad = .032 + m*.020 + rng.next()*.012;
+        const mid = addBody(rng.pick(['moon','ice','belt']), 'moon', `${parent.name}衛星${m+1}`, parent.x-c.x+Math.cos(angle)*rad, parent.y-c.y+Math.sin(angle)*rad, {owner:(!isPlayer && parent.owner===fid && m===0 ? fid : null), explored:(!isPlayer && parent.owner===fid), level:(!isPlayer && parent.owner===fid ? 1 : 0), pop:(!isPlayer && parent.owner===fid ? 1 : 0), parent:pid, r:.024});
+        connect(systems, pid, mid, 'orbit');
+      }
+    });
+    f.star = star; f.home = home;
   }
   function connect(systems,a,b,type='normal'){
     if(!systems[a].links.some(l => (typeof l === 'object' ? l.id : l) === b)) systems[a].links.push({id:b,type});
@@ -375,7 +417,7 @@
   function startNew(){
     const seed = $('seedInput').value.trim() || randomSeedText();
     state = createGame(seed, selectedDoctrine);
-    camera = {x:.5,y:.52,zoom:1.8};
+    camera = {x:.5,y:.50,zoom:1.22};
     addLog(`銀河シード「${seed}」で${DOCTRINES[selectedDoctrine].name}が始動。`, 'good');
     showScreen('game'); save(); render();
   }
@@ -404,7 +446,7 @@
     return {x:camera.x+(x-(f.left+usableW/2))/scale, y:camera.y+(y-(f.top+usableH/2))/scale};
   }
   function centerOn(s, zoom){ if(!s) return; camera.x=clamp(s.x,.02,.98); camera.y=clamp(s.y,.04,.96); if(zoom) camera.zoom=zoom; draw(); }
-  function fullMap(){ camera={x:.5,y:.52,zoom:.9}; draw(); }
+  function fullMap(){ camera={x:.5,y:.50,zoom:.58}; draw(); }
 
   function draw(){
     if(!ctx || !state) return;
@@ -645,8 +687,25 @@
     if(canInvade(s)){ a.push({id:'invade',label:'侵攻',warn:true,short:`AP1 充填1`}); }
     return a;
   }
-  function canExplore(s){ if(!s || s.explored || s.owner) return false; if(s.cluster!==0) return hasTech('warpDrive') && adjacentToOwned(s.id); if(s.kind==='moon') return adjacentToOwned(s.id); return hasTech('survey') && sameCluster(s) && (s.kind==='planet' || s.kind==='belt'); }
-  function canColonize(s){ if(!s || !s.explored || s.owner) return false; if(s.cluster!==0) return hasTech('warpDrive') && adjacentToOwned(s.id); return adjacentToOwned(s.id) || sameCluster(s); }
+  function canExplore(s){
+    if(!s || s.explored || s.owner) return false;
+    if(s.cluster!==0) return hasTech('warpDrive') && adjacentToOwned(s.id);
+    if(s.kind==='moon'){
+      const parent=system(s.parent);
+      if(parent?.body==='home') return adjacentToOwned(s.id);
+      return !!(parent && parent.owner==='P' && parent.level>=1 && adjacentToOwned(s.id));
+    }
+    return hasTech('survey') && sameCluster(s) && (s.kind==='planet' || s.kind==='belt');
+  }
+  function canColonize(s){
+    if(!s || !s.explored || s.owner) return false;
+    if(s.kind==='moon'){
+      const parent=system(s.parent);
+      if(parent && parent.body!=='home' && !(parent.owner==='P' && parent.level>=1)) return false;
+    }
+    if(s.cluster!==0) return hasTech('warpDrive') && adjacentToOwned(s.id);
+    return adjacentToOwned(s.id) || sameCluster(s);
+  }
   function canInvade(s){ return !!(s && s.owner && s.owner!=='P' && !faction(s.owner).eliminated && hasTech('warpDrive') && player().charge>0); }
   function yieldText(s){ const y=systemYield(s); return RESOURCE_ORDER.filter(k=>y[k]).map(k=>`${RESOURCES[k].label}${signFmt(y[k])}`).join(' / ') || 'なし'; }
   function systemYield(s){
@@ -687,6 +746,15 @@
     if(owner.techs.includes('megaFoundries')) out.materials=Math.floor(out.materials*1.10);
     if(owner.techs.includes('tariffUnion')) out.credits=Math.floor(out.credits*1.12);
     if(owner.techs.includes('stellarDominion') && s.kind==='star') out.energy=Math.floor(out.energy*1.20);
+    // Generic branch effects ensure expanded research nodes continue to affect core variables.
+    const sci=techCount(s.owner,'science'), ind=techCount(s.owner,'industry'), eco=techCount(s.owner,'economy'), bioT=techCount(s.owner,'bio'), voidT=techCount(s.owner,'void'), exp=techCount(s.owner,'explore'), warp=techCount(s.owner,'warp');
+    if(out.research>0) out.research=Math.floor(out.research*(1+sci*.018));
+    if(out.materials>0) out.materials=Math.floor(out.materials*(1+ind*.016));
+    if(out.credits>0) out.credits=Math.floor(out.credits*(1+eco*.018));
+    if(out.food>0) out.food=Math.floor(out.food*(1+bioT*.016));
+    if(out.crystal>0) out.crystal=Math.floor(out.crystal*(1+voidT*.018));
+    if(out.influence>0) out.influence=Math.floor(out.influence*(1+exp*.012+eco*.006));
+    if(out.energy>0) out.energy=Math.floor(out.energy*(1+warp*.014));
     return out;
   }
   function totalIncome(fid){ const out={...RESOURCE_BASE}; owned(fid).forEach(s=>{ const y=systemYield(s); Object.entries(y).forEach(([k,v])=>out[k]+=v); }); return out; }
@@ -701,20 +769,61 @@
   }
 
   function exploreCost(){ return {influence: hasTech('survey') ? 3 : 4}; }
-  function colonizeCost(){ let discount=(hasTech('terraform')||hasTech('charter'))?.82:1; ['outpostProtocols','migrationShips','autonomousColonies','symbioticHabitats'].forEach(id=>{ if(hasTech(id)) discount*=.92; }); return {materials:Math.round(22*discount), influence:Math.round(10*discount), food:Math.max(2,Math.round(5*discount))}; }
-  function developCost(s){ const base={materials:18+s.level*9, energy:4+s.level*2}; if(hasTech('orbitalIndustry')) base.materials=Math.round(base.materials*.85); ['nanoforge','modularFoundries','orbitalElevators','megaFoundries'].forEach(id=>{ if(hasTech(id)) base.materials=Math.round(base.materials*.90); }); if(hasTech('solarCollectors')) base.energy=Math.max(1,Math.round(base.energy*.90)); return base; }
-  function starChargeCost(s){ let energy=18+s.level*5, crystal=s.level>1?1:0; ['solarCollectors','fuelDepots','dysonFrames','stellarDominion'].forEach(id=>{ if(hasTech(id)) energy=Math.max(5,Math.round(energy*.88)); }); if(hasTech('wormholeMath')) crystal=Math.max(0, crystal-1); return {energy, crystal}; }
+  function colonizeCost(){
+    let discount=(hasTech('terraform')||hasTech('charter'))?.82:1;
+    ['outpostProtocols','migrationShips','autonomousColonies','symbioticHabitats'].forEach(id=>{ if(hasTech(id)) discount*=.92; });
+    discount*=Math.pow(.985, techCount('P','explore')+techCount('P','bio'));
+    return {materials:Math.round(22*discount), influence:Math.round(10*discount), food:Math.max(2,Math.round(5*discount))};
+  }
+  function developCost(s){
+    const base={materials:18+s.level*9, energy:4+s.level*2};
+    if(hasTech('orbitalIndustry')) base.materials=Math.round(base.materials*.85);
+    ['nanoforge','modularFoundries','orbitalElevators','megaFoundries'].forEach(id=>{ if(hasTech(id)) base.materials=Math.round(base.materials*.90); });
+    base.materials=Math.max(6, Math.round(base.materials*Math.pow(.985, techCount('P','industry'))));
+    if(hasTech('solarCollectors')) base.energy=Math.max(1,Math.round(base.energy*.90));
+    base.energy=Math.max(1, Math.round(base.energy*Math.pow(.99, techCount('P','warp'))));
+    return base;
+  }
+  function starChargeCost(s){
+    let energy=18+s.level*5, crystal=s.level>1?1:0;
+    ['solarCollectors','fuelDepots','dysonFrames','stellarDominion'].forEach(id=>{ if(hasTech(id)) energy=Math.max(5,Math.round(energy*.88)); });
+    if(hasTech('wormholeMath')) crystal=Math.max(0, crystal-1);
+    return {energy, crystal};
+  }
+
   function upgradeCost(id){ const u=UPGRADES[id]; const lv=player().upgrades[id]||0; const out={}; Object.entries(u.cost).forEach(([k,v])=>out[k]=Math.round(v*(1+lv*.55))); return out; }
 
-  function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チュートリアル中は、表示された手順だけ実行できます。'); return; } const before=state.tutorial.step; const ok = ({explore,colonize,develop,chargeStar,invade,buildShip,upgrade,research}[action] || (()=>false))(arg); if(ok) afterTutorialAction(action,arg); render(); }
+  
+  function milestone(kind, obj){
+    if(!state.milestones) state.milestones={};
+    const key=`${kind}:${obj?.id||obj?.name||''}:${state.turn}`;
+    if(state.milestones[key]) return;
+    state.milestones[key]=true;
+    const rivals=state.factions.filter(f=>f.id!=='P'&&!f.eliminated);
+    if(!rivals.length) return;
+    const f=rivals[(state.turn + (obj?.id||0)) % rivals.length];
+    const persona=CPU_PERSONAS[f.doctrine] || {};
+    if(kind==='research') addLog(`${f.name}通信：${persona.quote||'その技術、こちらも観測している。'}`, 'warn');
+    if(kind==='build') addLog(`${f.name}通信：艦隊を増やしたな。補給線を守れるか見ものだ。`, 'warn');
+    if(kind==='develop' && obj?.level>=3) addLog(`${f.name}通信：${obj.name}の開発が進んだ。次は防衛まで見せてもらおう。`, 'warn');
+  }
+function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チュートリアル中は、表示された手順だけ実行できます。'); return; } const before=state.tutorial.step; const ok = ({explore,colonize,develop,chargeStar,invade,buildShip,upgrade,research}[action] || (()=>false))(arg); if(ok) afterTutorialAction(action,arg); render(); }
   function consumeAp(){ if(state.ap<=0){ toast('APが足りません。ターン終了で回復します。'); return false; } state.ap--; return true; }
   function explore(){ const s=selectedSystem(); if(!canExplore(s)) return toast('この天体はまだ探索できません。衛星は最初から、別惑星は星系測量後に探索できます。'); const cost=exploreCost(s); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); s.explored=true; s.locked=false; addLog(`${s.name}を探索。${BODY_TYPES[s.body].name}を発見。`, 'good'); return true; }
   function colonize(){ const s=selectedSystem(), cost=colonizeCost(); if(!canColonize(s)) return toast('植民できるのは探索済みの中立天体です。'); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); s.owner='P'; s.level=0; s.pop=1.0; s.defense=Math.max(s.defense,8); s.explored=true; addLog(`${s.name}へ植民。立ち上げ期のため維持費に注意。`, 'good'); return true; }
-  function develop(){ const s=selectedSystem(); if(!s || s.owner!=='P' || s.kind==='star') return toast('通常開発できるのは自領の惑星・衛星・小惑星です。'); const cost=developCost(s); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); s.level++; s.pop += hasTech('bio') ? .9 : .55; s.defense += hasTech('defenseGrid') ? 5 : 3; addLog(`${s.name}を開発。収支と防衛が改善。`, 'good'); return true; }
+  function develop(){
+    const s=selectedSystem();
+    if(!s || s.owner!=='P' || s.kind==='star') return toast('通常開発できるのは自領の惑星・衛星・小惑星です。');
+    if(s.kind==='moon'){
+      const parent=system(s.parent);
+      if(parent && parent.body!=='home' && !(parent.owner==='P' && parent.level>=1)) return toast('衛星開発には、親惑星の保有と開発Lv1以上が必要です。');
+    }
+    const cost=developCost(s); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); s.level++; s.pop += hasTech('bio') ? .9 : .55; s.defense += hasTech('defenseGrid') ? 5 : 3; milestone('develop', s); addLog(`${s.name}を開発。収支と防衛が改善。`, 'good'); return true;
+  }
   function chargeStar(){ const s=selectedSystem(); if(!s || s.kind!=='star' || s.owner!=='P') return toast('恒星チャージは自領恒星で実行します。'); const cost=starChargeCost(s); if(!hasTech('stellarHarness')) return toast('恒星ハーネスが必要です。'); if(player().charge >= player().maxCharge + s.level) return toast('チャージ上限です。'); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); player().charge++; s.level++; addLog(`${s.name}でワープ用エネルギーを充填。充填${player().charge}/${player().maxCharge+s.level}`, 'good'); return true; }
-  function buildShip(id){ if(state.tutorial.active && state.tutorial.step<6) return toast('艦船建造はチュートリアル2ターン目で扱います。'); const ship=SHIPS[id]; if(!ship) return false; let cost={...ship.cost}; if(hasTech('dock')) Object.keys(cost).forEach(k=>cost[k]=Math.round(cost[k]*.9)); if(hasTech('shipFoundry')) Object.keys(cost).forEach(k=>cost[k]=Math.round(cost[k]*.9)); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); player().ships[id]=(player().ships[id]||0)+1; addLog(`${ship.name}を建造。`, 'good'); return true; }
+  function buildShip(id){ if(state.tutorial.active && state.tutorial.step<6) return toast('艦船建造はチュートリアル2ターン目で扱います。'); const ship=SHIPS[id]; if(!ship) return false; let cost={...ship.cost}; if(hasTech('dock')) Object.keys(cost).forEach(k=>cost[k]=Math.round(cost[k]*.9)); if(hasTech('shipFoundry')) Object.keys(cost).forEach(k=>cost[k]=Math.round(cost[k]*.9)); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); player().ships[id]=(player().ships[id]||0)+1; milestone('build', ship); addLog(`${ship.name}を建造。`, 'good'); return true; }
   function upgrade(id){ const u=UPGRADES[id]; if(!u) return false; const cost=upgradeCost(id); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); player().upgrades[id]=(player().upgrades[id]||0)+1; addLog(`艦隊${u.name}をLv.${player().upgrades[id]}へ強化。`, 'good'); return true; }
-  function research(id){ const t=TECHS.find(x=>x.id===id); if(!t) return false; const p=player(); if(p.techs.includes(id)) return false; if((t.req||[]).some(r=>!p.techs.includes(r))) return toast('前提技術が未取得です。'); if(p.resources.research<t.cost) return toast('研究が足りません。'); if(!consumeAp()) return false; p.resources.research-=t.cost; p.techs.push(id); if(id==='logistics') state.maxAp=Math.max(state.maxAp,4); if(id==='grandLogistics') state.maxAp=Math.max(state.maxAp,5); if(id==='jointCommand') state.maxAp=Math.max(state.maxAp,5); if(id==='galaxyLogistics') state.maxAp=Math.max(state.maxAp,6); if(id==='stellarHarness') p.maxCharge=2; if(id==='warpDrive') p.maxCharge=Math.max(p.maxCharge,3); if(id==='fuelDepots') p.maxCharge=Math.max(p.maxCharge,4); if(id==='dysonFrames') p.maxCharge=Math.max(p.maxCharge,5); if(id==='stellarDominion') p.maxCharge=Math.max(p.maxCharge,6); addLog(`技術「${t.name}」を取得。`, t.final?'good':''); return true; }
+  function research(id){ const t=TECHS.find(x=>x.id===id); if(!t) return false; const p=player(); if(p.techs.includes(id)) return false; if((t.req||[]).some(r=>!p.techs.includes(r))) return toast('前提技術が未取得です。'); if(p.resources.research<t.cost) return toast('研究が足りません。'); if(!consumeAp()) return false; p.resources.research-=t.cost; p.techs.push(id); milestone('research', t); if(id==='logistics') state.maxAp=Math.max(state.maxAp,4); if(id==='grandLogistics') state.maxAp=Math.max(state.maxAp,5); if(id==='jointCommand') state.maxAp=Math.max(state.maxAp,5); if(id==='galaxyLogistics') state.maxAp=Math.max(state.maxAp,6); if(id==='stellarHarness') p.maxCharge=2; if(id==='warpDrive') p.maxCharge=Math.max(p.maxCharge,3); if(id==='fuelDepots') p.maxCharge=Math.max(p.maxCharge,4); if(id==='dysonFrames') p.maxCharge=Math.max(p.maxCharge,5); if(id==='stellarDominion') p.maxCharge=Math.max(p.maxCharge,6); addLog(`技術「${t.name}」を取得。`, t.final?'good':''); return true; }
   function invade(){ const s=selectedSystem(); if(!canInvade(s)) return toast('侵攻にはワープ航法と恒星チャージが必要です。'); if(!consumeAp()) return false; player().charge--; const enemy=faction(s.owner); const ps=fleetStats(player()), es=fleetStats(enemy); const defense=defenseScore(s, enemy); let attack=ps.attack+ps.power*.38; if(hasTech('marines')) attack*=1.25; if(hasTech('siegeDoctrine')) attack*=1.12; const matchup=matchupBonus(s); attack*=matchup.mult; const roll=.88+Math.random()*.28; if(attack*roll>defense){ const oldOwner=s.owner, oldName=enemy.name; s.owner='P'; s.explored=true; s.defense=Math.max(7,Math.round(s.defense*.55)); loseShips(player(), .18); if(s.homeOf && s.homeOf!=='P'){ eliminateEmpire(enemy); addLog(`${oldName}の母星を制圧。帝国は敗退し、残存拠点を接収した。`, 'good'); } else { addLog(`${oldName}領${s.name}を制圧。${matchup.text}`, 'good'); } } else { loseShips(player(), .36); addLog(`${s.name}への侵攻は失敗。${DEFENSES[s.defenseType].name}を突破できず艦隊が損耗。`, 'bad'); } return true; }
   function defenseScore(s, enemy){ const es=fleetStats(enemy); let def=s.defense*2.4 + es.shield*.55 + es.power*.20; if(enemy.techs.includes('planetaryGuns')) def*=1.18; if(enemy.techs.includes('livingShield')) def*=1 + Math.min(.35,s.pop*.02); return Math.round(def); }
   function matchupBonus(s){ const p=player(); const type=s.defenseType; if(type==='armor' && (p.ships.destroyer||0)>0) return {mult:1.18,text:'駆逐艦が装甲要塞に有効だった。'}; if(type==='flak' && (p.ships.carrier||0)>0) return {mult:1.18,text:'空母が迎撃網を制圧した。'}; if(type==='shield' && (p.upgrades.weapons||0)>0) return {mult:1.10+.04*p.upgrades.weapons,text:'武器強化が惑星シールドを削った。'}; return {mult:1,text:'標準戦闘で押し切った。'}; }
@@ -723,8 +832,37 @@
 
   function endTurn(){ if(!tutorialAllows('endTurn')) return toast('今はガイドされた操作を先に行ってください。'); addRes(totalIncome('P'),'P'); growOwned('P'); const events=cpuTurn(); state.turn++; state.ap=state.maxAp; if(state.tutorial.active){ if(state.tutorial.step===4){ state.tutorial.step=5; addRes({research:18,materials:30,energy:16,credits:12},'P'); } else if(state.tutorial.step===8){ state.tutorial.step=9; state.selectedId=3; centerOn(system(3),1.95); addRes({materials:35,influence:20,food:12},'P'); } else if(state.tutorial.step===13){ completeTutorial(); } } state.replay=events; replayIndex=0; addLog(`ターン${state.turn}開始。資源収入を獲得。`, ''); if(!events.length) focusNextActionTarget(); render(); }
   function growOwned(fid){ owned(fid).forEach(s=>{ if(s.kind!=='star' && (faction(fid).resources.food||0)>10 && s.pop<14) s.pop += faction(fid).techs.includes('bio') ? .32 : .18; }); }
-  function cpuTurn(){ const events=[]; state.factions.filter(f=>f.id!=='P'&&!f.eliminated).forEach(f=>{ addRes(totalIncome(f.id),f.id); growOwned(f.id); const action=chooseCpuAction(f); if(action) events.push(action); }); return events; }
-  function chooseCpuAction(f){ const my=owned(f.id); if(my.length===0){ f.eliminated=true; return null; } const candidates=state.systems.filter(s=>s.cluster===f.cluster && !s.owner); const unknown=candidates.find(s=>!s.explored); const neutral=candidates.find(s=>s.explored); if(unknown && f.resources.influence>=4){ f.resources.influence-=4; unknown.explored=true; return {fid:f.id,sid:unknown.id,text:`${f.name}が${unknown.name}を探索。`,type:'explore'}; } if(neutral && f.resources.materials>=20 && f.resources.influence>=8){ f.resources.materials-=20; f.resources.influence-=8; neutral.owner=f.id; neutral.level=0; neutral.pop=1; neutral.explored=true; return {fid:f.id,sid:neutral.id,text:`${f.name}が${neutral.name}へ植民。`,type:'colonize'}; } if(f.resources.research>=34 && !f.techs.includes('stellarHarness')){ f.resources.research-=34; f.techs.push('stellarHarness'); return {fid:f.id,sid:f.star,text:`${f.name}が恒星ハーネスを研究。`,type:'research'}; } if(f.resources.materials>=24){ const h=system(f.home); f.resources.materials-=24; h.level++; h.defense+=4; return {fid:f.id,sid:h.id,text:`${f.name}が母星防衛を強化。`,type:'develop'}; } return {fid:f.id,sid:f.home,text:`${f.name}は資源を蓄積。`,type:'wait'}; }
+  function cpuTurn(){
+    const events=[];
+    state.factions.filter(f=>f.id!=='P'&&!f.eliminated).forEach(f=>{
+      const inc=totalIncome(f.id); Object.keys(inc).forEach(k=>inc[k]=Math.ceil(inc[k]*1.45 + (k==='research'?6:k==='materials'?8:k==='energy'?6:3)));
+      addRes(inc,f.id); growOwned(f.id);
+      const turns = state.turn>6 ? 3 : 2;
+      for(let i=0;i<turns;i++){ const action=chooseCpuAction(f); if(action) events.push(action); }
+    });
+    return events;
+  }
+  function chooseCpuAction(f){
+    const my=owned(f.id); if(my.length===0){ f.eliminated=true; return null; }
+    const persona=CPU_PERSONAS[f.doctrine] || {};
+    const candidates=state.systems.filter(s=>s.cluster===f.cluster && !s.owner);
+    const unknown=candidates.find(s=>!s.explored && (s.kind!=='moon' || !s.parent || system(s.parent)?.owner===f.id || system(s.parent)?.homeOf===f.id));
+    const neutral=candidates.find(s=>s.explored);
+    const pTargets=state.systems.filter(s=>s.owner==='P');
+    if(state.turn>10 && f.techs.includes('warpDrive') && (f.charge||0)>0 && pTargets.length && fleetStats(f).power>fleetStats(player()).power*.62){
+      const target=pTargets.sort((a,b)=>(b.homeOf==='P')-(a.homeOf==='P') || b.defense-a.defense)[0]; f.charge--; return {fid:f.id,sid:target.id,text:`${f.name}が${target.name}へ圧力をかけた。${persona.quote||''}`,type:'threat'};
+    }
+    const techs=availableTechs(f.id).filter(t=>!f.techs.includes(t.id) && (t.req||[]).every(r=>f.techs.includes(r))).sort((a,b)=>a.cost-b.cost);
+    const preferred = f.ai==='war' ? ['dock','marines','battleAI','warpDrive','siegeDoctrine'] : f.ai==='research' ? ['laser','quantumLabs','stellarHarness','warpDrive','sensorLattice'] : f.ai==='trade' ? ['bank','tradePort','charter','resourceFutures'] : ['bio','hydroponics','colonyAdmin','terraform','defenseGrid'];
+    const choice = techs.find(t=>preferred.includes(t.id) && f.resources.research>=t.cost) || techs.find(t=>f.resources.research>=t.cost);
+    if(choice){ f.resources.research-=choice.cost; f.techs.push(choice.id); if(choice.id==='stellarHarness') f.maxCharge=Math.max(f.maxCharge,2); if(choice.id==='warpDrive') f.maxCharge=Math.max(f.maxCharge,3); return {fid:f.id,sid:f.star,text:`${f.name}が「${choice.name}」を研究。${persona.quote||''}`,type:'research'}; }
+    if(unknown && f.resources.influence>=4){ f.resources.influence-=4; unknown.explored=true; return {fid:f.id,sid:unknown.id,text:`${f.name}が${unknown.name}を探索。`,type:'explore'}; }
+    if(neutral && f.resources.materials>=22 && f.resources.influence>=10){ f.resources.materials-=22; f.resources.influence-=10; neutral.owner=f.id; neutral.level=0; neutral.pop=1; neutral.explored=true; return {fid:f.id,sid:neutral.id,text:`${f.name}が${neutral.name}へ植民。`,type:'colonize'}; }
+    if(f.techs.includes('stellarHarness') && (f.charge||0)<(f.maxCharge||2) && f.resources.energy>=18){ f.resources.energy-=18; f.charge=(f.charge||0)+1; return {fid:f.id,sid:f.star,text:`${f.name}が恒星チャージを蓄積。`,type:'charge'}; }
+    if(f.resources.materials>=52 && f.resources.energy>=13 && state.turn>5){ f.resources.materials-=52; f.resources.energy-=13; f.ships.destroyer=(f.ships.destroyer||0)+1; return {fid:f.id,sid:f.home,text:`${f.name}が駆逐艦を建造。`,type:'fleet'}; }
+    if(f.resources.materials>=24){ const h=system(f.home); f.resources.materials-=24; h.level++; h.defense+=6; return {fid:f.id,sid:h.id,text:`${f.name}が母星防衛を強化。`,type:'develop'}; }
+    return {fid:f.id,sid:f.home,text:`${f.name}は資源を蓄積。`,type:'wait'};
+  }
   function renderReplay(){ const box=$('cpuReplay'); if(!state.replay||state.replay.length===0){ box.hidden=true; return; } box.hidden=false; const ev=state.replay[replayIndex]||state.replay[0]; centerOn(system(ev.sid), camera.zoom); box.innerHTML=`<h3>CPUターン ${replayIndex+1}/${state.replay.length}</h3><p>${ev.text}</p><div class="replay-actions"><button id="replayNext" type="button">${replayIndex<state.replay.length-1?'次の行動を見る':'次ターンへ'}</button><button id="replayClose" type="button">まとめて閉じる</button></div>`; $('replayNext').onclick=()=>{ if(replayIndex<state.replay.length-1){ replayIndex++; renderReplay(); draw(); } else { finishReplay(); } }; $('replayClose').onclick=finishReplay; }
 
   function empireHtml(){ const p=player(), fs=fleetStats(p), prod=totalIncome('P'); let html=`<section class="panel-section"><h2>あなたの帝国</h2><div class="mini-grid"><div class="stat-card"><small>保有天体</small><b>${owned('P').length}</b></div><div class="stat-card"><small>恒星充填</small><b>${p.charge}/${p.maxCharge}</b></div><div class="stat-card"><small>総合戦力</small><b>${fs.power}</b></div><div class="stat-card"><small>攻撃/防御</small><b>${fs.attack}/${fs.shield}</b></div></div><p class="yield-line">収入：${RESOURCE_ORDER.filter(k=>prod[k]).map(k=>`${RESOURCES[k].label}${signFmt(prod[k])}`).join(' / ')}</p></section><section class="panel-section"><h3>艦船を建造</h3>`; Object.entries(SHIPS).forEach(([id,s])=>{ html+=`<div class="ship-row"><img src="${icon(s.icon)}" alt=""><div><b>${s.name} × ${p.ships[id]||0}</b><span>${s.text}<br>戦力${s.power} / ${costText(s.cost)}</span></div><button class="pill ${canPay(s.cost)&&state.ap>0&&tutorialAllows('buildShip',id)?'good':''}" data-action="buildShip" data-arg="${id}" type="button">建造</button></div>`; }); html+=`</section><section class="panel-section"><h3>艦隊強化</h3>`; Object.entries(UPGRADES).forEach(([id,u])=>{ const c=upgradeCost(id); html+=`<div class="ship-row"><img src="${icon(u.icon)}" alt=""><div><b>${u.name} Lv.${p.upgrades[id]}</b><span>${u.text}<br>${costText(c)}</span></div><button class="pill ${canPay(c)&&state.ap>0&&tutorialAllows('upgrade',id)?'good':''}" data-action="upgrade" data-arg="${id}" type="button">強化</button></div>`; }); return html+`</section>`; }
@@ -741,75 +879,54 @@
     if(['relic','void','crystalCodex','phaseLances','voidPilgrimage','voidCrown'].includes(t.id) || ['crystal','espionage'].includes(t.icon) || t.doctrine==='mystic') return 'void';
     return 'science';
   }
+
+  function techCount(fid, branch){ return availableTechs(fid).filter(t=>faction(fid)?.techs.includes(t.id) && (!branch || techBranch(t)===branch)).length; }
+  function techTierSum(fid, branch){ return availableTechs(fid).filter(t=>faction(fid)?.techs.includes(t.id) && (!branch || techBranch(t)===branch)).reduce((a,t)=>a+(t.tier||1),0); }
+  function researched(id){ const t=TECHS.find(x=>x.id===id); return t ? player().techs.includes(id) : false; }
+  function techDependents(id){ return availableTechs('P').filter(t=>(t.req||[]).includes(id)); }
+  function techEffectSummary(t){
+    const b=techBranch(t);
+    const map={
+      explore:'探索範囲・植民コスト・星系運営に影響します。', industry:'開発コスト、資材産出、造船基盤に影響します。', science:'研究産出と上位技術の前提に影響します。', warp:'恒星チャージ、星系間移動、侵攻解放に影響します。', military:'艦隊戦力、建造効率、侵攻成功率に影響します。', defense:'惑星防衛、防衛施設、艦隊損耗に影響します。', economy:'信用収入と不足資源の補助に影響します。', bio:'食料・人口・植民地維持費に影響します。', void:'結晶・特殊航法・シールド系に影響します。', final:'勝利条件または最終級の統合効果に関係します。'
+    };
+    return map[b] || '研究・内政の基礎に影響します。';
+  }
+  function resourceRibbon(fid='P'){
+    const f=faction(fid); const inc=totalIncome(fid);
+    return `<div class="modal-resource-ribbon">${RESOURCE_ORDER.map(k=>`<span><img src="${icon(RESOURCES[k].icon)}" alt=""><b>${fmt(f.resources[k]||0)}</b><em>${signFmt(inc[k]||0)}/T</em></span>`).join('')}</div>`;
+  }
+
   function techHtml(){
     const p=player();
     const all=availableTechs('P').slice().sort((a,b)=>(a.tier-b.tier)||(techBranch(a).localeCompare(techBranch(b)))||(a.cost-b.cost)||a.name.localeCompare(b.name,'ja'));
     const branches=[
-      ['explore','探索・植民'],['industry','工業・資材'],['science','研究・演算'],['warp','恒星・ワープ'],
-      ['military','艦隊・侵攻'],['defense','防衛'],['economy','交易・信用'],['bio','人口・生態'],['void','遺物・虚空'],['final','最終']
+      ['explore','探索'],['industry','工業'],['science','研究'],['warp','恒星'],['military','艦隊'],['defense','防衛'],['economy','交易'],['bio','生態'],['void','虚空'],['final','最終']
     ];
     const tiers=[1,2,3,4,5];
-    const branchIndex=Object.fromEntries(branches.map((b,i)=>[b[0],i]));
     const groups={};
-    all.forEach(t=>{
-      const b=techBranch(t), tier=t.tier||1;
-      const key=`${b}:${tier}`;
-      (groups[key] ||= []).push(t);
-    });
-
-    const nodeW=184, nodeH=116, colW=238, laneGap=34, nodeGap=12, left=112, tierTop=18;
-    const laneMeta={};
-    let cursorY=64;
-    branches.forEach(([b,label])=>{
-      const maxSlots=Math.max(1,...tiers.map(t=>(groups[`${b}:${t}`]||[]).length));
-      const laneH=42 + maxSlots*(nodeH+nodeGap) + laneGap;
-      laneMeta[b]={y:cursorY,h:laneH,label,maxSlots};
-      cursorY += laneH;
-    });
+    all.forEach(t=>{ const key=`${techBranch(t)}:${t.tier||1}`; (groups[key] ||= []).push(t); });
+    const nodeW=104, nodeH=56, colW=132, laneH=84, left=76, top=38;
     const pos={};
     all.forEach(t=>{
       const b=techBranch(t), tier=t.tier||1;
       const group=groups[`${b}:${tier}`]||[];
       const slot=group.findIndex(x=>x.id===t.id);
-      pos[t.id]={
-        x:left+(tier-1)*colW,
-        y:laneMeta[b].y+36+slot*(nodeH+nodeGap),
-        w:nodeW,
-        h:nodeH
-      };
+      const laneIndex=Math.max(0, branches.findIndex(x=>x[0]===b));
+      pos[t.id]={x:left+(tier-1)*colW, y:top+laneIndex*laneH+slot*(nodeH+6), w:nodeW, h:nodeH};
     });
-    const width=left+tiers.length*colW+34;
-    const height=cursorY+24;
+    const maxSlot=Math.max(1,...Object.values(groups).map(g=>g.length));
+    const width=left+tiers.length*colW+24;
+    const height=top+branches.length*laneH+(maxSlot-1)*(nodeH+6)+40;
     const done=all.filter(t=>p.techs.includes(t.id)).length;
     const canCount=all.filter(t=>!p.techs.includes(t.id) && (t.req||[]).every(r=>p.techs.includes(r)) && p.resources.research>=t.cost).length;
-    let html=`<section class="panel-section tech-intro"><h2>研究ツリーマップ</h2><p>横方向が段階、縦方向が研究分野です。緑は取得済み、青は今すぐ研究可能、灰色は前提不足です。線をたどると、どの研究ルートを有効化してきたかがわかります。</p><div class="tech-progress"><b>${done}/${all.length}</b><span>取得済み</span><b>${canCount}</b><span>研究可能</span></div><div class="tech-legend"><span class="done">取得済み</span><span class="can">研究可能</span><span class="locked">前提不足</span></div></section>`;
-    html+=`<div class="tech-map-wrap"><div class="tech-map" style="width:${width}px;height:${height}px">`;
+    let html=`<section class="panel-section tech-intro compact"><h2>研究ツリーマップ</h2>${resourceRibbon('P')}<p>全体把握用に小さく表示しています。研究をタップすると、詳細・前提・解放先・実行ボタンが開きます。</p><div class="tech-progress"><b>${done}/${all.length}</b><span>取得済み</span><b>${canCount}</b><span>研究可能</span></div><div class="tech-legend"><span class="done">取得済み</span><span class="can">研究可能</span><span class="locked">前提不足</span></div></section>`;
+    html+=`<div class="tech-map-wrap compact-map"><div class="tech-map compact-tree" style="width:${width}px;height:${height}px">`;
     html+=`<svg class="tech-edges" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true">`;
-    all.forEach(t=>{
-      (t.req||[]).forEach(r=>{
-        if(!pos[r] || !pos[t.id]) return;
-        const a=pos[r], b=pos[t.id];
-        const boughtReq=p.techs.includes(r), bought=p.techs.includes(t.id);
-        const active=boughtReq && !bought && (t.req||[]).every(x=>p.techs.includes(x));
-        const cls=boughtReq&&bought?'done':active?'active':'locked';
-        const x1=a.x+a.w, y1=a.y+a.h/2, x2=b.x, y2=b.y+b.h/2, mx=(x1+x2)/2;
-        html+=`<path class="tech-edge ${cls}" d="M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}"/>`;
-      });
-    });
+    all.forEach(t=>{ (t.req||[]).forEach(r=>{ if(!pos[r] || !pos[t.id]) return; const a=pos[r], b=pos[t.id]; const boughtReq=p.techs.includes(r), bought=p.techs.includes(t.id); const active=boughtReq && !bought && (t.req||[]).every(x=>p.techs.includes(x)); const cls=boughtReq&&bought?'done':active?'active':'locked'; const x1=a.x+a.w, y1=a.y+a.h/2, x2=b.x, y2=b.y+b.h/2, mx=(x1+x2)/2; html+=`<path class="tech-edge ${cls}" d="M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}"/>`; }); });
     html+=`</svg>`;
-    branches.forEach(([id,label])=>{
-      const meta=laneMeta[id];
-      html+=`<div class="tech-lane-band" style="top:${meta.y}px;height:${meta.h-laneGap}px"></div>`;
-      html+=`<div class="tech-lane-label" style="top:${meta.y+8}px">${label}</div>`;
-    });
+    branches.forEach(([id,label],i)=>{ const y=top+i*laneH-6; html+=`<div class="tech-lane-band" style="top:${y}px;height:${laneH-10}px"></div><div class="tech-lane-label" style="top:${y+6}px">${label}</div>`; });
     tiers.forEach(tier=>{ html+=`<div class="tech-tier-label" style="left:${left+(tier-1)*colW}px">T${tier}</div>`; });
-    all.forEach(t=>{
-      const pp=pos[t.id];
-      const bought=p.techs.includes(t.id), missing=(t.req||[]).filter(r=>!p.techs.includes(r)), locked=missing.length>0, can=!bought&&!locked&&p.resources.research>=t.cost&&state.ap>0&&tutorialAllows('research',t.id);
-      const reqTxt=(t.req||[]).map(id=>TECHS.find(x=>x.id===id)?.name||id).join('＋');
-      const missingTxt=missing.map(id=>TECHS.find(x=>x.id)?.name||id).join('・');
-      html+=`<article class="tech-map-node ${bought?'done':locked?'locked':can?'can':'open'}" style="left:${pp.x}px;top:${pp.y}px;width:${pp.w}px;height:${pp.h}px"><header><img src="${icon(t.icon)}" alt=""><b>${t.name}</b></header><p>${t.text}</p><small>${reqTxt?`前提: ${reqTxt}`:'前提なし'}${missing.length?` / 不足: ${missingTxt}`:''}</small><div class="tech-node-footer"><span>研究 ${t.cost}</span><button class="pill ${bought?'you':can?'good':locked?'bad':''}" data-action="research" data-arg="${t.id}" type="button" ${bought||locked?'disabled':''}>${bought?'取得済':locked?'未解放':'研究'}</button></div></article>`;
-    });
+    all.forEach(t=>{ const pp=pos[t.id]; const bought=p.techs.includes(t.id), missing=(t.req||[]).filter(r=>!p.techs.includes(r)), locked=missing.length>0, can=!bought&&!locked&&p.resources.research>=t.cost&&state.ap>0&&tutorialAllows('research',t.id); const short=(t.text||'').replace(/。.*$/,'').slice(0,22); html+=`<button class="tech-map-node compact-node ${bought?'done':locked?'locked':can?'can':'open'}" data-tech="${t.id}" type="button" style="left:${pp.x}px;top:${pp.y}px;width:${pp.w}px;height:${pp.h}px"><b>${t.name}</b><span>${short}</span><em>研 ${t.cost}</em></button>`; });
     return html+`</div></div>`;
   }
   function factionsHtml(){ const rows=[['総合',f=>factionScore(f.id)],['保有',f=>owned(f.id).length],['技術',f=>f.techs.length],['艦隊',f=>fleetStats(f).power],['攻撃',f=>fleetStats(f).attack],['防御',f=>fleetStats(f).shield],['収入',f=>RESOURCE_ORDER.reduce((a,k)=>a+(totalIncome(f.id)[k]||0),0)],['恒星',f=>`${f.charge||0}/${f.maxCharge||1}`],['状態',f=>f.eliminated?'敗退':f.id==='P'?'あなた':'活動']]; let html=`<section class="panel-section"><h2>勢力比較</h2><p>横にスワイプして各帝国を比較できます。総合は保有・収入・研究・艦隊を合算した目安です。</p></section><div class="faction-matrix"><table><thead><tr><th>項目</th>${state.factions.map(f=>`<th><button data-faction="${f.id}" type="button"><img src="${factionImage(f)}" alt=""><b>${f.id==='P'?'あなた':f.name}</b></button></th>`).join('')}</tr></thead><tbody>${rows.map(([label,fn])=>`<tr><td>${label}</td>${state.factions.map(f=>`<td class="${f.eliminated?'bad':f.id==='P'?'you':''}">${fn(f)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; return html; }
@@ -832,7 +949,24 @@
     </div>`;
   }
   function bindFactionButtons(root){ root.querySelectorAll('[data-faction]').forEach(btn=>btn.addEventListener('click',()=>showFactionDetail(btn.dataset.faction))); }
-  function openMobilePage(page){ modalPage=page; const title={empire:'艦隊',tech:'研究',factions:'勢力比較',codex:'説明',log:'ログ'}[page]||'情報'; const html=page==='empire'?empireHtml():page==='tech'?techHtml():page==='factions'?factionsHtml():page==='codex'?codexHtml():logHtml(); showModal(`<h2>${title}</h2>${html}`,true); bindActionButtons($('modalBody')); bindFactionButtons($('modalBody')); }
+  
+  function showTechDetail(id){
+    const t=TECHS.find(x=>x.id===id); if(!t) return;
+    const p=player();
+    const bought=p.techs.includes(id);
+    const reqs=(t.req||[]).map(r=>TECHS.find(x=>x.id===r)).filter(Boolean);
+    const missing=reqs.filter(r=>!p.techs.includes(r.id));
+    const deps=techDependents(id);
+    const can=!bought && missing.length===0 && p.resources.research>=t.cost && state.ap>0 && tutorialAllows('research',id);
+    const reqHtml=reqs.length?reqs.map(r=>`<li class="${p.techs.includes(r.id)?'ok':'miss'}">${r.name}${p.techs.includes(r.id)?'（取得済）':'（未取得）'}</li>`).join(''):'<li>前提なし</li>';
+    const depHtml=deps.length?deps.slice(0,14).map(d=>`<li>${d.name} <small>T${d.tier||1} / ${techBranchLabel(techBranch(d))}</small></li>`).join(''):'<li>直接の解放先なし。最終ルートや複合前提の一部になります。</li>';
+    showModal(`<h2>${t.name}</h2>${resourceRibbon('P')}<section class="panel-section"><h3>研究内容</h3><p>${t.text}</p><p><b>効果：</b>${techEffectSummary(t)}</p><p><b>必要研究量：</b>${t.cost} / 現在 ${fmt(p.resources.research)} / AP ${state.ap}/${state.maxAp}</p></section><section class="panel-section"><h3>この研究に必要な前提</h3><ul class="req-list">${reqHtml}</ul></section><section class="panel-section"><h3>この研究で開く次の候補</h3><ul class="req-list">${depHtml}</ul></section><div class="tech-detail-actions"><button class="primary-btn" data-action="research" data-arg="${id}" type="button" ${can?'':'disabled'}>${bought?'取得済み':missing.length?'前提不足':p.resources.research<t.cost?'研究不足':state.ap<=0?'AP不足':'この研究を実行'}</button><button class="ghost-btn" id="backToTree" type="button">ツリーへ戻る</button></div>`,true);
+    bindActionButtons($('modalBody'));
+    const back=$('backToTree'); if(back) back.onclick=()=>openMobilePage('tech');
+  }
+  function techBranchLabel(b){ return ({explore:'探索',industry:'工業',science:'研究',warp:'恒星',military:'艦隊',defense:'防衛',economy:'交易',bio:'生態',void:'虚空',final:'最終'})[b]||b; }
+  function bindTechButtons(root){ root.querySelectorAll('[data-tech]').forEach(btn=>btn.addEventListener('click',()=>showTechDetail(btn.dataset.tech))); }
+function openMobilePage(page){ modalPage=page; const title={empire:'艦隊',tech:'研究',factions:'勢力比較',codex:'説明',log:'ログ'}[page]||'情報'; const html=page==='empire'?empireHtml():page==='tech'?techHtml():page==='factions'?factionsHtml():page==='codex'?codexHtml():logHtml(); showModal(`<h2>${title}</h2>${html}`,true); bindActionButtons($('modalBody')); bindTechButtons($('modalBody')); bindFactionButtons($('modalBody')); }
 
   function showResourceHelp(k){ const r=RESOURCES[k], inc=totalIncome('P')[k]||0; showModal(`<h2>${r.label}</h2><div class="help-grid"><div><h3>何に使う？</h3><p>${r.use}</p></div><div><h3>どう増える？</h3><p>${r.gain}</p></div><div><h3>現在の収入</h3><p>毎ターン ${signFmt(inc)}。植民地の維持費でマイナスになることもあります。</p></div><div><h3>戦略メモ</h3><p>${r.advice}</p></div></div>`); }
   function showApHelp(){ showModal(`<h2>APとは？</h2><p>APは1ターンにできる主要行動数です。探索・植民・開発・研究・艦船建造・艦隊強化・恒星チャージ・侵攻で1ずつ使います。</p><p>序盤は3AP。技術「星域兵站」で4APになります。</p>`); }
