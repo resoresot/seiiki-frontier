@@ -785,7 +785,7 @@
     state.milestones[key]=true;
     const rivals=state.factions.filter(f=>f.id!=='P'&&!f.eliminated);
     if(!rivals.length) return;
-    const f=rivals[(state.turn + (obj?.id||0)) % rivals.length];
+    const f=rivals[(state.turn + (typeof obj?.id==='number'?obj.id:0)) % rivals.length];
     const persona=CPU_PERSONAS[f.doctrine] || {};
     if(kind==='research') addLog(`${f.name}通信：${persona.quote||'その技術、こちらも観測している。'}`, 'warn');
     if(kind==='build') addLog(`${f.name}通信：艦隊を増やしたな。補給線を守れるか見ものだ。`, 'warn');
