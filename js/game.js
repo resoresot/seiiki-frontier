@@ -1,15 +1,17 @@
 (() => {
   'use strict';
 
-  const SAVE_KEY = 'seiiki-frontier-save-v17';
+  const SAVE_KEY = 'seiiki-frontier-save-v20';
+  const LEGACY_SAVE_KEYS = ['seiiki-frontier-save-v17'];
   const AS = 'assets/img/';
-  const VERSION = 17;
+  const VERSION = 20;
   // How fast a sprawling empire loses per-colony efficiency. Higher = harder to snowball.
   const ADMIN_DRAG = 0.12;
   const VICTORY_TURN = 50;
   const DOMINATION_THRESHOLD = 0.60;
   const SIEGE_STEP_BASE = 18;
   const HOME_INVASION_CHARGE = 2;
+  const MAX_DEVELOPMENT = 6;
 
   const RESOURCES = {
     materials:{label:'資材', icon:'materials', use:'開発、植民、艦船建造、防衛施設に使う基礎資源。', gain:'鉱物系の惑星・衛星・小惑星帯を開発すると増えます。', advice:'序盤は足りなくなりやすいです。植民直後は維持費で赤字になりやすいので、開発を重ねて黒字化しましょう。'},
@@ -235,6 +237,7 @@
   const icon = (name) => `${AS}icons/${name}.png`;
   const storageGet = (k) => { try { return window.localStorage?.getItem(k); } catch { return null; } };
   const storageSet = (k,v) => { try { window.localStorage?.setItem(k,v); } catch { /* preview contexts may block storage */ } };
+  const savedGameRaw = () => storageGet(SAVE_KEY) || LEGACY_SAVE_KEYS.map(storageGet).find(Boolean) || null;
 
   class RNG {
     constructor(seed){ this.seed = RNG.hash(seed || String(Date.now())); }
@@ -338,7 +341,7 @@
       btn.onclick = () => { selectedDoctrine = id; initTitle(); };
       wrap.appendChild(btn);
     });
-    $('continueBtn').disabled = !storageGet(SAVE_KEY);
+    $('continueBtn').disabled = !savedGameRaw();
   }
 
   function randomSeedText(){ return ['Orion','Nova','Vega','Eos','Zenith','Luna','Aster','Nox','Iris','Kronos'][Math.floor(Math.random()*10)] + '-' + Math.floor(1000+Math.random()*9000); }
@@ -456,7 +459,7 @@
     showScreen('game'); save(); render();
   }
   function continueGame(){
-    try{ const raw=storageGet(SAVE_KEY); if(!raw) return; state=JSON.parse(raw); normalizeState(); camera=state.camera || {x:.5,y:.52,zoom:1.5}; showScreen('game'); render(); }
+    try{ const raw=savedGameRaw(); if(!raw) return; state=JSON.parse(raw); normalizeState(); camera=state.camera || {x:.5,y:.52,zoom:1.5}; showScreen('game'); render(); }
     catch(e){ alert('セーブデータを読み込めませんでした。'); }
   }
   function normalizeState(){
@@ -716,7 +719,7 @@
     const a=[];
     if(canExplore(s)){ const cost=exploreCost(s); if(tutorialAllows('explore')) a.push({id:'explore',label:'探索',short:`AP1 ${costText(cost)}`}); }
     if(canColonize(s)){ const cost=colonizeCost(s); if(tutorialAllows('colonize')) a.push({id:'colonize',label:'植民',short:`AP1 ${costText(cost)}`}); }
-    if(s.owner==='P' && s.kind!=='star'){ const cost=developCost(s); if(tutorialAllows('develop')) a.push({id:'develop',label:'開発',short:`AP1 ${costText(cost)}`}); }
+    if(s.owner==='P' && s.kind!=='star' && s.level<MAX_DEVELOPMENT){ const cost=developCost(s); if(tutorialAllows('develop')) a.push({id:'develop',label:'開発',short:`AP1 ${costText(cost)}`}); }
     if(canFortify(s)){ const cost=fortifyCost(s); if(tutorialAllows('fortify')) a.push({id:'fortify',label:'防衛強化',short:`AP1 ${costText(cost)}`}); }
     if(s.owner==='P' && s.kind==='star' && hasTech('stellarHarness')){ const cost=starChargeCost(s); if(tutorialAllows('charge')) a.push({id:'chargeStar',label:'恒星チャージ',short:`AP1 ${costText(cost)}`}); }
     if(canBesiege(s)){ const cost=siegeCost(s); a.push({id:'besiege',label:'包囲',warn:true,short:`AP1 充填1 ${costText(cost)}`}); }
@@ -807,7 +810,7 @@
   function totalIncome(fid){ const out={...RESOURCE_BASE}; owned(fid).forEach(s=>{ const y=systemYield(s); Object.entries(y).forEach(([k,v])=>out[k]+=v); }); return out; }
   function ownedInCluster(fid, clusterId){ return owned(fid).filter(s=>s.cluster===clusterId); }
   function averageDevelopment(fid){ const o=owned(fid).filter(s=>s.kind!=='star'); return o.length ? o.reduce((a,s)=>a+s.level,0)/o.length : 0; }
-  function adminTechCount(fid){ const f=faction(fid); return ['colonyAdmin','logistics','civilRegistry','sectorCapitals','autonomousColonies','galaxyLogistics','galacticLogistics','grandLogistics'].filter(id=>f.techs.includes(id)).length; }
+  function adminTechCount(fid){ const f=faction(fid); return ['colonyAdmin','logistics','civilRegistry','sectorCapital','autonomousColonies','grandLogistics','galaxyLogistics'].filter(id=>f.techs.includes(id)).length; }
   function t4TechCount(fid){ const f=faction(fid); return TECHS.filter(t=>(t.tier||1)>=4 && f.techs.includes(t.id)).length; }
   function researchBaseCount(fid){ return owned(fid).filter(s=>s.level>=2 && ['home','ice','relic','crystal'].includes(s.body)).length; }
   function effectiveControl(fid){
@@ -898,6 +901,24 @@
 
   function exploreCost(){ return {influence: hasTech('survey') ? 3 : 4}; }
   function colonizeCost(){ let discount=(hasTech('terraform')||hasTech('charter'))?.82:1; ['outpostProtocols','migrationShips','autonomousColonies','symbioticHabitats'].forEach(id=>{ if(hasTech(id)) discount*=.92; }); discount*=Math.pow(.985, techCount('P','explore')+techCount('P','bio')); return {materials:Math.round(22*discount), influence:Math.round(10*discount), food:Math.max(2,Math.round(5*discount))}; }
+  function developCost(s){
+    const level=Math.max(0, s?.level || 0);
+    let materials = 24 + level * 10;
+    let energy = level >= 2 ? 4 + level : 0;
+    let research = level >= 3 ? 4 + level * 2 : 0;
+    if(s?.kind === 'planet') materials += 6;
+    if(s?.kind === 'belt') materials += 4;
+    if(s?.body === 'home') materials += 10 + level * 4;
+    if(['gas','crystal','relic'].includes(s?.body)) energy += 2 + level;
+    let discount = 1;
+    ['orbitalIndustry','nanoforge','modularFoundries','planetaryLogistics'].forEach(id => { if(hasTech(id)) discount *= .90; });
+    if(hasTech('orbitalElevators') && (s?.pop || 0) >= 3) discount *= .92;
+    discount *= Math.pow(.992, techCount('P','industry'));
+    const cost = {materials:Math.max(8, Math.round(materials * discount))};
+    if(energy > 0) cost.energy = Math.max(1, Math.round(energy * discount));
+    if(research > 0) cost.research = Math.max(1, Math.round(research * discount));
+    return cost;
+  }
   function starChargeCost(s){ let energy=18+s.level*5, crystal=s.level>1?1:0; ['solarCollectors','fuelDepots','dysonFrames','stellarDominion'].forEach(id=>{ if(hasTech(id)) energy=Math.max(5,Math.round(energy*.88)); }); if(hasTech('wormholeMath')) crystal=Math.max(0, crystal-1); return {energy, crystal}; }
   function upgradeCost(id){ const u=UPGRADES[id]; const lv=player().upgrades[id]||0; const out={}; Object.entries(u.cost).forEach(([k,v])=>out[k]=Math.round(v*(1+lv*.55))); return out; }
 
@@ -926,6 +947,7 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
       const parent=system(s.parent);
       if(parent && parent.body!=='home' && !(parent.owner==='P' && parent.level>=1)) return toast('衛星開発には、親惑星の保有と開発Lv1以上が必要です。');
     }
+    if(s.level>=MAX_DEVELOPMENT) return toast(`開発Lvは最大${MAX_DEVELOPMENT}です。防衛強化や別天体の開発にAPを使ってください。`);
     const cost=developCost(s); if(!canPay(cost)) return toast(`資源不足：${costText(cost)}`); if(!consumeAp()) return false; pay(cost); s.level++; s.pop += hasTech('bio') ? .9 : .55; s.defense += hasTech('defenseGrid') ? 5 : 3; milestone('develop', s); addLog(`${s.name}を開発。収支と防衛が改善。`, 'good'); return true;
   }
   function canFortify(s){ return !!(s && s.owner==='P' && s.kind!=='star' && s.explored); }
@@ -1092,7 +1114,7 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
     if(neutral && f.resources.materials>=22 && f.resources.influence>=10){ f.resources.materials-=22; f.resources.influence-=10; neutral.owner=f.id; neutral.level=0; neutral.pop=1; neutral.explored=true; return {fid:f.id,sid:neutral.id,text:`${f.name}が${neutral.name}へ植民。`,type:'colonize'}; }
     if(f.techs.includes('stellarHarness') && (f.charge||0)<(f.maxCharge||2) && f.resources.energy>=18){ f.resources.energy-=18; f.charge=(f.charge||0)+1; return {fid:f.id,sid:f.star,text:`${f.name}が恒星チャージを蓄積。`,type:'charge'}; }
     if(f.resources.materials>=52 && f.resources.energy>=13 && state.turn>5){ f.resources.materials-=52; f.resources.energy-=13; f.ships.destroyer=(f.ships.destroyer||0)+1; return {fid:f.id,sid:f.home,text:`${f.name}が駆逐艦を建造。`,type:'fleet'}; }
-    if(f.resources.materials>=24){ const h=system(f.home); f.resources.materials-=24; h.level++; h.defense+=6; return {fid:f.id,sid:h.id,text:`${f.name}が母星防衛を強化。`,type:'develop'}; }
+    if(f.resources.materials>=24){ const h=system(f.home); f.resources.materials-=24; if(h.level<MAX_DEVELOPMENT) h.level++; h.defense+=6; return {fid:f.id,sid:h.id,text:`${f.name}が母星防衛を強化。`,type:'develop'}; }
     return {fid:f.id,sid:f.home,text:`${f.name}は資源を蓄積。`,type:'wait'};
   }
   function renderReplay(){ const box=$('cpuReplay'); if(!state.replay||state.replay.length===0){ box.hidden=true; return; } box.hidden=false; const ev=state.replay[replayIndex]||state.replay[0]; centerOn(system(ev.sid), camera.zoom); box.innerHTML=`<h3>CPUターン ${replayIndex+1}/${state.replay.length}</h3><p>${ev.text}</p><div class="replay-actions"><button id="replayNext" type="button">${replayIndex<state.replay.length-1?'次の行動を見る':'次ターンへ'}</button><button id="replayClose" type="button">まとめて閉じる</button></div>`; $('replayNext').onclick=()=>{ if(replayIndex<state.replay.length-1){ replayIndex++; renderReplay(); draw(); } else { finishReplay(); } }; $('replayClose').onclick=finishReplay; }

@@ -1,16 +1,21 @@
-星域フロンティア patch v19
+星域フロンティア patch v20
 
 目的:
-- 「新しい銀河を開始」を押しても始まらない不具合の修正。
+- v19 でチュートリアル中に植民後、操作パネルが「開発」へ切り替わらない不具合の修正。
+- 追加で見つかった進行・勝利条件まわりの小さな不整合を修正。
 
 原因:
-- createGame() の中で buildCluster() 実行中、まだ state が作られていない段階で system(pid) を呼んでいた。
-- system() は state.systems を参照するため、ゲーム開始時に例外が出て停止する。
+- 植民後の再描画で getActionsFor() が developCost(s) を呼ぶが、v19 の game.js に developCost() 定義が存在しなかった。
+- その ReferenceError により描画が停止し、チュートリアル文だけが 3/9 に進んだまま、下部の操作パネルが植民表示で止まっていた。
 
 修正:
-- buildCluster() の衛星生成処理内だけ、system(pid) ではなく生成中配列 systems[pid] を参照するよう変更。
+- developCost() を追加し、開発ボタンと開発実行が同じコスト計算を使うようにした。
+- 開発Lvの上限を Lv6 に統一し、プレイヤー/CPU とも無制限にLvが伸びないようにした。
+- 支配勝利の行政系技術カウントで、存在しない技術IDを参照していた箇所を実在IDに修正した。
+- SAVE_KEY と VERSION を v20 に更新しつつ、既存の v17/v19 系セーブは「続きから」で読み込めるようにした。
+- index.html の JS/CSS cache busting を更新した。
 
 確認:
 - node --check js/game.js: OK
-- 疑似DOMスモーク: load / start / galaxy connected / select tutorial moon / explore / endTurn 呼び出しまで OK
-- 画像・assets は変更なし。
+- Playwright smoke: チュートリアルの探索 -> 植民後に owner=P、step=3、操作パネルが develop のみになることを確認。
+- Playwright smoke: 1ターン目の探索 -> 植民 -> 開発まで進み、step=4/AP0/ターン終了可能になることを確認。
