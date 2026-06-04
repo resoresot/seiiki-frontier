@@ -1,0 +1,11 @@
+星域フロンティア patch v18
+
+内容:
+- 開始時に銀河生成が止まる原因を修正
+- buildCluster() 内の衛星生成で、まだ作成前の global state 経由 system(pid) を参照していた箇所を、生成中の systems[pid] 参照に変更
+
+変更ファイル:
+- js/game.js
+
+適用方法:
+- 差分ZIP対応済み sf-deploy で反映

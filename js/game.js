@@ -423,7 +423,7 @@
     }
     // Random moons. Moons only connect to their planet; they require parent planet development for later development.
     planetIds.slice().forEach((pid,idx)=>{
-      const parent=system(pid);
+      const parent=systems[pid];
       const maxMoons = parent.body==='home' ? 2 : rng.int(0,3);
       for(let m=0;m<maxMoons;m++){
         if(isPlayer && parent.id!==home && idx>3 && rng.chance(.35)) continue;
