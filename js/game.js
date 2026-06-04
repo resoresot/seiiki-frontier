@@ -227,6 +227,8 @@
   let selectedDoctrine = 'tech';
   let modalPage = null;
   let modalDetail = null;
+  let lastTapTime = 0;
+  let lastTapTarget = null;
   let images = {};
   let rng = null;
   let canvas, ctx;
@@ -592,7 +594,7 @@
     if(e.touches.length===0){
       if(drag.active && !drag.moved && e.changedTouches && e.changedTouches[0]){
         const t=e.changedTouches[0]; const s=nearestSystemAt(t.clientX,t.clientY);
-        if(s){ state.selectedId=s.id; advanceTutorialOnSelect(s); save(); render(); }
+        if(s){ const now=performance.now(); if(lastTapTarget===s.id && now-lastTapTime<400){ showPlanetDetail(s); lastTapTarget=null; } else { state.selectedId=s.id; advanceTutorialOnSelect(s); save(); render(); lastTapTarget=s.id; lastTapTime=now; } }
       }
       drag.active=false; pinch=null;
     }
@@ -642,7 +644,7 @@
     const x=e.clientX, y=e.clientY;
     pointers.delete(e.pointerId);
     canvas.releasePointerCapture?.(e.pointerId);
-    if(tap){ const s=nearestSystemAt(x,y); if(s){ state.selectedId=s.id; advanceTutorialOnSelect(s); save(); render(); } }
+    if(tap){ const s=nearestSystemAt(x,y); if(s){ const now=performance.now(); if(lastTapTarget===s.id && now-lastTapTime<400){ showPlanetDetail(s); lastTapTarget=null; } else { state.selectedId=s.id; advanceTutorialOnSelect(s); save(); render(); lastTapTarget=s.id; lastTapTime=now; } } }
     if(pointers.size===1){ const p=[...pointers.values()][0]; drag.active=true; drag.moved=true; drag.startX=p.x; drag.startY=p.y; drag.lastX=p.x; drag.lastY=p.y; pinch=null; }
     else if(pointers.size===0){ drag.active=false; pinch=null; }
   }
@@ -736,9 +738,68 @@
     const body=$('panelBody'), s=selectedSystem(); if(!s){ body.innerHTML=`<div class="panel-section compact"><p class="empty">星をタップしてください。</p></div>`; return; }
     const visible=isVisible(s), type=BODY_TYPES[s.body], owner=s.owner?faction(s.owner):null, actions=actionButtonsHtml(s);
     const income = systemYield(s);
-    const compactIncome = RESOURCE_ORDER.map(k=>`<span><i>${RESOURCES[k].label}</i><b>${signFmt(income[k]||0)}</b></span>`).join('');
-    body.innerHTML = `<section class="panel-section compact system-card"><div class="system-action-row"><div class="action-strip">${actions}</div><div class="selected-mini"><b>${visible?s.name:'未探索天体'}</b><span>Lv${s.level} / ${visible?type.name:'不明'}</span></div></div><div class="system-head"><div><h2>${visible?s.name:'未探索天体'}</h2><p>${clusterOf(s.cluster).name} / ${visible?type.name:'正体不明'}</p></div><span class="pill ${s.owner==='P'?'you':s.owner?'bad':''}">${owner?owner.name.replace('あなたの帝国','あなた'):'中立'}</span></div><div class="sys-stats compact-stats"><span>Lv <b>${s.level}</b></span><span>人口 <b>${s.pop.toFixed ? s.pop.toFixed(1) : s.pop}</b></span><span>防衛 <b>${s.defense}</b></span><span>${DEFENSES[s.defenseType]?.name || '防衛なし'}</span></div>${visible?`<div class="income-grid">${compactIncome}</div><p class="system-note">${systemAdvice(s)}</p>`:`<p class="system-note">未探索です。探索すると種類・収支・植民可否がわかります。</p>`}</section>`;
+    const pop = s.pop!=null ? (s.pop.toFixed ? s.pop.toFixed(1) : s.pop) : 0;
+    const incomeRow = visible
+      ? (RESOURCE_ORDER.filter(k=>income[k]).map(k=>`<span class="inc ${income[k]>0?'pos':'neg'}"><img src="${icon(RESOURCES[k].icon)}" alt="${RESOURCES[k].label}"><b>${signFmt(income[k])}</b></span>`).join('') || '<span class="inc-none">収支なし</span>')
+      : '';
+    const ownerPill = `<span class="pill ${s.owner==='P'?'you':s.owner?'bad':''}">${owner?owner.name.replace('あなたの帝国','あなた'):'中立'}</span>`;
+    const meta = visible
+      ? `${type.name} · ${clusterOf(s.cluster).name} · Lv${s.level} · 人口${pop} · 防${s.defense} · ${DEFENSES[s.defenseType]?.name||'防衛なし'}`
+      : `未探索 · ${clusterOf(s.cluster).name}`;
+    body.innerHTML = `<section class="panel-section compact system-card"><div class="sys-top"><div class="sys-id"><b>${visible?s.name:'未探索天体'}</b>${ownerPill}</div>${visible?'<button class="sys-detail-btn" type="button" aria-label="詳細を見る">ⓘ 詳細</button>':''}</div><div class="sys-meta">${meta}</div><div class="action-strip">${actions}</div>${visible?`<div class="income-row">${incomeRow}</div>`:`<p class="system-note">探索すると種類・収支・植民可否がわかります。</p>`}</section>`;
     bindActionButtons(body);
+    const db=body.querySelector('.sys-detail-btn'); if(db) db.onclick=()=>showPlanetDetail(s);
+  }
+  function simulateYieldAtLevel(s, level){
+    const fake = {...s, level, pop: Math.max(s.pop||1, 1 + level*0.55)};
+    const out={...RESOURCE_BASE}; if(!s.owner && level===0) return out;
+    const base={...(BODY_TYPES[s.body]?.yields||{})};
+    let mult = s.kind==='star' ? (1+level*.30) : (level===0 ? .18 : .45 + level*.28 + Math.max(0,fake.pop-1)*.045);
+    if(s.body==='home') mult = 1 + level*.25 + Math.max(0,fake.pop-1)*.055;
+    Object.entries(base).forEach(([k,v]) => out[k] += Math.floor(v*mult));
+    if(s.kind!=='star' && s.body!=='home'){
+      const burden = Math.max(0, 4 - level);
+      out.food -= Math.ceil(burden + fake.pop*.55);
+      out.energy -= Math.max(0, Math.ceil(2 - level));
+      if(level===0) out.materials -= 2;
+    }
+    return out;
+  }
+  function showPlanetDetail(s){
+    if(!s || !isVisible(s)) return;
+    const type = BODY_TYPES[s.body];
+    if(!type) return;
+    const owner = s.owner ? faction(s.owner) : null;
+    const maxLevelShow = s.kind==='star' ? 5 : Math.min(8, MAX_DEVELOPMENT+2);
+    let tableRows = '';
+    for(let lv=0; lv<=maxLevelShow; lv++){
+      const y = simulateYieldAtLevel(s, lv);
+      const isCur = lv === (s.level||0);
+      tableRows += `<tr class="${isCur?'lv-current':''}"><td>${lv}${isCur?' ◀':''}</td>${RESOURCE_ORDER.map(k=>`<td class="${(y[k]||0)>0?'pos':(y[k]||0)<0?'neg':''}">${signFmt(y[k]||0)}</td>`).join('')}</tr>`;
+    }
+    const growthPotential = s.kind==='star' ? '恒星はチャージ拠点です。開発でチャージ上限と電力が増えます。' :
+      s.body==='home' ? '母星は帝国の中核です。開発で全資源の産出が上がり防衛も強化されます。' :
+      type.yields.food >= 8 ? '食料産出が高く、人口の伸びに優れます。植民地の中核に向きます。' :
+      type.yields.materials >= 10 ? '資材産出が高く、建造・開発の拠点に最適です。' :
+      type.yields.research >= 7 ? '研究に優れた星です。技術勝利を狙うなら重要です。' :
+      type.yields.energy >= 10 ? '電力が豊富です。艦隊運用やワープ準備を支えます。' :
+      type.yields.crystal >= 5 ? '結晶が得られる希少な星です。上位技術や艦隊に重要。' :
+      '汎用的な星です。バランスよく産出します。';
+    const baseYields = RESOURCE_ORDER.filter(k=>type.yields[k]).map(k=>`<span class="pd-yield"><img src="${icon(RESOURCES[k].icon)}" alt=""><b>${type.yields[k]}</b></span>`).join('');
+    showModal(`<h2>${s.name}</h2>
+      <div class="planet-detail">
+        <div class="pd-head">
+          <div class="pd-type"><b>${type.name}</b><span>${clusterOf(s.cluster).name}</span></div>
+          <div class="pd-owner pill ${s.owner==='P'?'you':s.owner?'bad':''}">${owner?owner.name.replace('あなたの帝国','あなた'):'中立'}</div>
+        </div>
+        <div class="pd-stats"><span>Lv <b>${s.level}</b></span><span>人口 <b>${(s.pop||0).toFixed?s.pop.toFixed(1):s.pop}</b></span><span>防衛 <b>${s.defense}</b></span><span>${DEFENSES[s.defenseType]?.name||'なし'}</span></div>
+        <div class="pd-section"><h3>基礎産出</h3><div class="pd-yields">${baseYields}</div></div>
+        <div class="pd-section"><h3>特徴</h3><p>${type.note}</p><p>${systemAdvice(s)}</p></div>
+        <div class="pd-section"><h3>伸びしろ</h3><p>${growthPotential}</p></div>
+        <div class="pd-section"><h3>レベル別産出予測</h3><p class="pd-hint">技術補正なしの基本値。現在レベルを ◀ で表示。</p>
+          <div class="pd-table-wrap"><table class="pd-table"><thead><tr><th>Lv</th>${RESOURCE_ORDER.map(k=>`<th><img src="${icon(RESOURCES[k].icon)}" alt="" style="width:14px;height:14px"></th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table></div>
+        </div>
+      </div>`, true);
   }
   function actionButtonsHtml(s){ const actions=getActionsFor(s); if(actions.length===0) return `<span class="no-action">今は実行可能な操作なし</span>`; return actions.map(a=>`<button class="quick-action ${a.warn?'warn':''}" data-action="${a.id}" data-arg="${a.arg||''}" type="button">${a.label}<small>${a.short}</small></button>`).join(''); }
   function getActionsFor(s){
@@ -749,7 +810,7 @@
     if(canFortify(s)){ const cost=fortifyCost(s); if(tutorialAllows('fortify')) a.push({id:'fortify',label:'防衛強化',short:`AP1 ${costText(cost)}`}); }
     if(s.owner==='P' && s.kind==='star' && hasTech('stellarHarness')){ const cost=starChargeCost(s); if(tutorialAllows('charge')) a.push({id:'chargeStar',label:'恒星チャージ',short:`AP1 ${costText(cost)}`}); }
     if(canBesiege(s)){ const cost=siegeCost(s); a.push({id:'besiege',label:'包囲',warn:true,short:`AP1 充填1 ${costText(cost)}`}); }
-    if(canInvade(s)){ const pv=battlePreview(player(), faction(s.owner), s); a.push({id:'invade',label:'侵攻',warn:true,short:`勝率${pv.winChance}% AP1 充填${s.homeOf?HOME_INVASION_CHARGE:1}`}); }
+    if(canInvade(s)){ const pv=battlePreview(player(), faction(s.owner), s); const recon=isReconquest(s,'P'); a.push({id:'invade',label:recon?'奪還':'侵攻',warn:true,short:recon?`勝率${pv.winChance}% AP1`:`勝率${pv.winChance}% AP1 充填${s.homeOf?HOME_INVASION_CHARGE:1}`}); }
     return a;
   }
   function canExplore(s){
@@ -771,9 +832,16 @@
     if(s.cluster!==0) return hasTech('warpDrive') && adjacentToOwned(s.id);
     return adjacentToOwned(s.id) || sameCluster(s);
   }
+  function isReconquest(s, attackerId='P'){
+    // A body inside the attacker's own home cluster that an enemy seized: local reconquest, no warp/charge needed.
+    return !!(s && s.owner && s.owner!==attackerId && !s.homeOf && s.cluster===faction(attackerId).cluster);
+  }
   function canInvade(s){
-    if(!s || !s.owner || s.owner==='P' || faction(s.owner).eliminated || !hasTech('warpDrive')) return false;
+    if(!s || !s.owner || s.owner==='P' || faction(s.owner).eliminated) return false;
     const p=player();
+    // Reconquest in your own home cluster: defend with the fleet alone, even if your star/charge was lost.
+    if(isReconquest(s,'P')) return true;
+    if(!hasTech('warpDrive')) return false;
     if(s.homeOf && s.homeOf!== 'P') return homeInvasionReasons(s,'P').length===0;
     if(p.charge<1) return false;
     // Enemy systems must be approached through non-home targets first. Without a bridgehead, only outer non-home bodies may be attacked.
@@ -1071,7 +1139,7 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
     if(!canInvade(s)) return toast('侵攻にはワープ航法と恒星チャージが必要です。');
     if(arg!=='confirm') return showInvasionPreview(s);
     if(!consumeAp()) return false;
-    player().charge=Math.max(0, player().charge-(s.homeOf?HOME_INVASION_CHARGE:1));
+    if(!isReconquest(s,'P')) player().charge=Math.max(0, player().charge-(s.homeOf?HOME_INVASION_CHARGE:1));
     $('infoModal').close();
     return executeInvasion('P', s.id, {playerAttack:true});
   }
@@ -1083,7 +1151,8 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
     const success=pv.attack*roll>pv.defense;
     if(success){
       const oldOwner=s.owner, oldName=defender.name;
-      s.owner=attacker.id; s.origin='occupied'; s.occupiedTurn=state.turn; s.explored = attacker.id==='P' ? true : s.explored; s.defense=Math.max(7,Math.round(s.defense*.58));
+      // Reclaiming a world inside your own home cluster counts as self-held, not a foreign occupation.
+      s.owner=attacker.id; s.origin = (s.cluster===attacker.cluster && !s.homeOf) ? 'colonized' : 'occupied'; s.occupiedTurn=state.turn; s.explored = attacker.id==='P' ? true : s.explored; s.defense=Math.max(7,Math.round(s.defense*.58));
       loseShips(attacker, opts.cpu ? .14 : .18);
       // Taking the enemy star cracks open their home siege.
       if(s.kind==='star' && s.starOf && s.starOf!==attacker.id){

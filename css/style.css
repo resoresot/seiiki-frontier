@@ -668,3 +668,47 @@ html,body{-webkit-text-size-adjust:100%;}
 .panel-section.tech-project .missing-note{color:#ffd37a;font-size:.82rem}
 .panel-section.tech-project .good-note{color:#70f2a7;font-weight:800}
 .primary-btn.disabled{opacity:.45;filter:grayscale(.4)}
+
+/* compact system panel (no vertical scroll) */
+.system-card{padding:7px!important;margin-bottom:0!important;}
+.system-card .sys-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;}
+.system-card .sys-id{display:flex;align-items:center;gap:7px;min-width:0;}
+.system-card .sys-id b{font-size:13px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.system-card .sys-id .pill{flex:0 0 auto;padding:2px 7px;font-size:10px;}
+.sys-detail-btn{flex:0 0 auto;border:1px solid rgba(110,231,255,.34);background:rgba(20,91,165,.5);color:#dff4ff;border-radius:10px;padding:3px 7px;font-size:10px;font-weight:800;}
+.system-card .sys-meta{font-size:10px;color:var(--muted);line-height:1.2;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.system-card .action-strip{margin-bottom:4px!important;padding-bottom:0!important;border-bottom:0!important;}
+.system-card .action-strip .quick-action{min-height:28px!important;padding:4px 6px!important;font-size:11px!important;}
+.system-card .action-strip .quick-action small{font-size:8px!important;line-height:1.05!important;margin-top:1px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.income-row{display:flex;flex-wrap:nowrap;gap:5px;margin-top:0;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+.income-row .inc{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;border:1px solid rgba(160,210,255,.14);border-radius:9px;background:rgba(0,0,0,.18);padding:3px 6px;}
+.income-row .inc img{width:13px;height:13px;}
+.income-row .inc b{font-size:11px;}
+.income-row .inc.pos b{color:var(--green);}
+.income-row .inc.neg b{color:var(--red);}
+.income-row .inc-none{font-size:10px;color:var(--muted);}
+
+/* planet detail popup (level-by-level production forecast) */
+.planet-detail{margin-top:8px;}
+.pd-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}
+.pd-type b{display:block;font-size:15px;}
+.pd-type span{font-size:11px;color:var(--muted);}
+.pd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;}
+.pd-stats span{border:1px solid rgba(160,210,255,.14);border-radius:10px;padding:5px;background:rgba(0,0,0,.17);font-size:10px;color:var(--muted);text-align:center;}
+.pd-stats b{display:block;color:#fff;font-size:12px;}
+.pd-section{border:1px solid rgba(160,210,255,.16);border-radius:14px;background:rgba(255,255,255,.04);padding:8px;margin-bottom:8px;}
+.pd-section h3{margin:0 0 4px;font-size:12px;color:var(--cyan);}
+.pd-section p{margin:0 0 3px;font-size:11px;line-height:1.45;color:#cfe4fa;}
+.pd-yields{display:flex;gap:6px;flex-wrap:wrap;}
+.pd-yield{display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.08);border-radius:8px;padding:4px 7px;}
+.pd-yield img{width:16px;height:16px;}
+.pd-yield b{font-size:12px;color:#fff;}
+.pd-hint{font-size:9px!important;color:var(--muted)!important;margin-bottom:6px!important;}
+.pd-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid rgba(160,210,255,.12);}
+.pd-table{border-collapse:collapse;width:100%;min-width:360px;font-size:10px;}
+.pd-table th,.pd-table td{padding:4px 3px;text-align:center;border-bottom:1px solid rgba(160,210,255,.08);}
+.pd-table th{background:rgba(8,19,39,.95);color:var(--muted);font-size:9px;position:sticky;top:0;}
+.pd-table td.pos{color:var(--green);}
+.pd-table td.neg{color:var(--red);}
+.pd-table tr.lv-current{background:rgba(110,231,255,.12);font-weight:900;}
+.pd-table tr.lv-current td{color:#fff;}
