@@ -645,3 +645,15 @@ html,body{-webkit-text-size-adjust:100%;}
 .battle-preview.bad{border-color:rgba(255,107,107,.48);box-shadow:inset 0 0 0 1px rgba(255,107,107,.14)}
 .battle-preview h3{color:var(--cyan)}
 @media (max-width:699px){.confirm-actions{grid-template-columns:1fr}.battle-preview .mini-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* tutorial pulse highlight */
+@keyframes tutorial-pulse{
+  0%,100%{box-shadow:0 0 0 3px rgba(110,231,255,.45),0 0 14px rgba(110,231,255,.25)}
+  50%{box-shadow:0 0 0 7px rgba(110,231,255,.7),0 0 28px rgba(110,231,255,.45)}
+}
+.tutorial-glow{
+  animation:tutorial-pulse 1.2s ease-in-out infinite!important;
+  border-color:rgba(110,231,255,.85)!important;
+  position:relative;
+  z-index:22;
+}
