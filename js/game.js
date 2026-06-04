@@ -4,6 +4,8 @@
   const SAVE_KEY = 'seiiki-frontier-save-v15';
   const AS = 'assets/img/';
   const VERSION = 15;
+  // How fast a sprawling empire loses per-colony efficiency. Higher = harder to snowball.
+  const ADMIN_DRAG = 0.12;
 
   const RESOURCES = {
     materials:{label:'資材', icon:'materials', use:'開発、植民、艦船建造、防衛施設に使う基礎資源。', gain:'鉱物系の惑星・衛星・小惑星帯を開発すると増えます。', advice:'序盤は足りなくなりやすいです。植民直後は維持費で赤字になりやすいので、開発を重ねて黒字化しましょう。'},
@@ -220,6 +222,7 @@
   let pointers = new Map();
   let pinch = null;
   let replayIndex = 0;
+  let techScroll = null;
 
   const $ = (id) => document.getElementById(id);
   const clamp = (n,min,max) => Math.max(min, Math.min(max, n));
@@ -277,7 +280,10 @@
   const fleetText = (f) => Object.entries(SHIPS).map(([k,s]) => `${s.name}${f.ships?.[k] || 0}`).join(' / ');
   function factionScore(fid){ const f=faction(fid); if(!f) return 0; const prod=totalIncome(fid), fs=fleetStats(f); const resourceScore=RESOURCE_ORDER.reduce((a,k)=>a+(f.resources[k]||0)*0.08+(prod[k]||0)*1.8,0); return Math.round(resourceScore + owned(fid).length*22 + f.techs.length*18 + fs.power*0.75 + (f.charge||0)*18); }
   function focusNextActionTarget(){ if(!state) return; const target=tutorialTargetSystem() || selectedSystem() || system(player().home); if(target){ state.selectedId=target.id; centerOn(target, Math.max(camera.zoom, 1.05)); } }
-  function finishReplay(){ state.replay=[]; replayIndex=0; focusNextActionTarget(); render(); }
+  // After a turn resolves, bring the player back to their home system so they always
+  // restart from a clear, familiar view instead of being left wherever the CPU acted last.
+  function focusAfterTurn(){ if(!state) return; if(state.tutorial?.active){ focusNextActionTarget(); return; } const home=system(player()?.home); if(home){ state.selectedId=home.id; centerOn(home, Math.max(camera.zoom, 1.55)); } else { focusNextActionTarget(); } }
+  function finishReplay(){ state.replay=[]; replayIndex=0; focusAfterTurn(); render(); }
 
   function preload(){
     const entries = [
@@ -326,7 +332,7 @@
   function createGame(seed, doctrine){
     rng = new RNG(seed);
     const factions = [
-      {id:'P', name:'あなたの帝国', doctrine, color:DOCTRINES[doctrine].color, cluster:0, home:null, star:null, resources:{materials:118,research:52,influence:56,energy:62,food:64,crystal:16,credits:54}, charge:0, maxCharge:1, ships:{scout:2,frigate:1,destroyer:0,carrier:0}, upgrades:{weapons:0,shields:0,engines:0}, techs:[], eliminated:false, ai:'player', persona:'プレイヤー'},
+      {id:'P', name:'あなたの帝国', doctrine, color:DOCTRINES[doctrine].color, cluster:0, home:null, star:null, resources:{materials:72,research:28,influence:30,energy:38,food:42,crystal:8,credits:26}, charge:0, maxCharge:1, ships:{scout:2,frigate:1,destroyer:0,carrier:0}, upgrades:{weapons:0,shields:0,engines:0}, techs:[], eliminated:false, ai:'player', persona:'プレイヤー'},
       ...CPU_NAMES.map((name,i) => {
         const doctrine=CPU_DOCTRINES[i];
         const persona=CPU_PERSONAS[doctrine];
@@ -667,7 +673,22 @@
     RESOURCE_ORDER.forEach(k=>{ const r=RESOURCES[k]; const btn=document.createElement('button'); btn.type='button'; btn.className='resource-chip'; btn.innerHTML=`<img src="${icon(r.icon)}" alt=""><small>${r.label}</small><b>${fmt(p.resources[k])}</b><em>${signFmt(income[k]||0)}/T</em>`; btn.onclick=()=>showResourceHelp(k); bar.appendChild(btn); });
   }
   function renderCoach(){ const coach=$('coach'), data=tutorialText(); if(!data){coach.classList.add('is-hidden'); return;} coach.classList.remove('is-hidden'); $('coachKicker').textContent=data[0]; $('coachTitle').textContent=data[1]; $('coachText').textContent=data[2]; }
-  function renderTutorialHighlights(){ document.querySelectorAll('.tutorial-glow').forEach(el=>el.classList.remove('tutorial-glow')); if(!state?.tutorial?.active) return; const step=state.tutorial.step; if(step===5) document.querySelector('#sideMenu [data-page="tech"]')?.classList.add('tutorial-glow'); if(step===6||step===7) document.querySelector('#sideMenu [data-page="empire"]')?.classList.add('tutorial-glow'); if(step===4||step===8||step===13) $('endTurnBtn')?.classList.add('tutorial-glow'); }
+  function renderTutorialHighlights(){
+    document.querySelectorAll('.tutorial-glow').forEach(el=>el.classList.remove('tutorial-glow'));
+    if(state?.tutorial?.active){
+      const step=state.tutorial.step;
+      if(step===5) document.querySelector('#sideMenu [data-page="tech"]')?.classList.add('tutorial-glow');
+      if(step===6||step===7) document.querySelector('#sideMenu [data-page="empire"]')?.classList.add('tutorial-glow');
+      // Glow the actual action button the coach is asking for (explore / colonize / develop).
+      if(step===1||step===10) document.querySelector('#panelBody [data-action="explore"]')?.classList.add('tutorial-glow');
+      if(step===2||step===11) document.querySelector('#panelBody [data-action="colonize"]')?.classList.add('tutorial-glow');
+      if(step===3||step===12) document.querySelector('#panelBody [data-action="develop"]')?.classList.add('tutorial-glow');
+      if(step===4||step===8||step===13) $('endTurnBtn')?.classList.add('tutorial-glow');
+      return;
+    }
+    // Outside the tutorial: once every AP is spent, glow ターン終了 so it is obvious the turn is over.
+    if(state && !state.victory && state.ap<=0 && (!state.replay || state.replay.length===0)) $('endTurnBtn')?.classList.add('tutorial-glow');
+  }
   function renderPanel(){ $('bottomSheet').classList.toggle('is-collapsed', !!state.sheetCollapsed); $('endTurnBtn').disabled=!tutorialAllows('endTurn'); renderSystemPanel(); }
   function bindActionButtons(root){ root.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => { const prevStep=state?.tutorial?.step; handleAction(btn.dataset.action, btn.dataset.arg); const newStep=state?.tutorial?.step; if(state?.tutorial?.active && newStep!==prevStep){ if(newStep===7&&modalPage==='empire'){ setTimeout(()=>openMobilePage('empire'),0); } else { modalPage=null; modalDetail=null; $('infoModal').close(); } return; } if(modalPage && $('infoModal').open) setTimeout(()=>openMobilePage(modalPage,true),0); })); }
 
@@ -758,9 +779,28 @@
     if(out.crystal>0) out.crystal=Math.floor(out.crystal*(1+voidT*.018));
     if(out.influence>0) out.influence=Math.floor(out.influence*(1+exp*.012+eco*.006));
     if(out.energy>0) out.energy=Math.floor(out.energy*(1+warp*.014));
+    // Global scarcity tuning: energy, influence and credits otherwise outrun their sinks and pile
+    // up unused, so they are reined in to keep every resource a live decision rather than a surplus.
+    out.energy=Math.floor(out.energy*0.72);
+    out.influence=Math.floor(out.influence*0.72);
+    out.credits=Math.floor(out.credits*0.74);
     return out;
   }
-  function totalIncome(fid){ const out={...RESOURCE_BASE}; owned(fid).forEach(s=>{ const y=systemYield(s); Object.entries(y).forEach(([k,v])=>out[k]+=v); }); return out; }
+  function fleetUpkeep(f){ const sh=f?.ships||{}; return { energy: Math.round((sh.scout||0)*0.4 + (sh.frigate||0)*0.9 + (sh.destroyer||0)*1.8 + (sh.carrier||0)*3.4), credits: Math.round((sh.scout||0)*0.2 + (sh.frigate||0)*0.4 + (sh.destroyer||0)*0.9 + (sh.carrier||0)*1.8) }; }
+  function colonyCount(fid){ return owned(fid).filter(s=>s.kind!=='star' && s.body!=='home').length; }
+  // Administrative efficiency: each outlying colony runs less efficiently as the empire sprawls,
+  // so total income approaches a plateau instead of snowballing without limit. The home world and
+  // your own star always run at full output — only the wider colony network is diluted.
+  function adminEfficiency(fid){ return 1/(1+Math.max(0, colonyCount(fid)-4)*ADMIN_DRAG); }
+  function totalIncome(fid){
+    const out={...RESOURCE_BASE}; const eff=adminEfficiency(fid);
+    owned(fid).forEach(s=>{ const y=systemYield(s); const scale=(s.kind==='star'||s.body==='home')?1:eff; Object.entries(y).forEach(([k,v])=>{ out[k]+= v>0 ? v*scale : v; }); });
+    // Standing fleets draw upkeep each turn, so a large navy is a real economic commitment.
+    const f=faction(fid);
+    if(f){ const up=fleetUpkeep(f); out.energy-=up.energy; out.credits-=up.credits; }
+    RESOURCE_ORDER.forEach(k=>{ out[k]=Math.round(out[k]); });
+    return out;
+  }
   function systemAdvice(s){
     if(s.kind==='star') return hasTech('stellarHarness') ? '恒星は星系間移動の充填拠点です。チャージを貯めるとワープ侵攻に使えます。' : '恒星は後で開発対象になります。恒星ハーネスを研究するとエネルギーチャージが可能になります。';
     if(!s.explored && s.kind==='moon') return '最初に探索できる範囲です。衛星で操作を覚え、資源基盤を作ります。';
@@ -772,8 +812,8 @@
   }
 
   function exploreCost(){ return {influence: hasTech('survey') ? 3 : 4}; }
-  function colonizeCost(){ let discount=(hasTech('terraform')||hasTech('charter'))?.82:1; ['outpostProtocols','migrationShips','autonomousColonies','symbioticHabitats'].forEach(id=>{ if(hasTech(id)) discount*=.92; }); discount*=Math.pow(.985, techCount('P','explore')+techCount('P','bio')); return {materials:Math.round(22*discount), influence:Math.round(10*discount), food:Math.max(2,Math.round(5*discount))}; }
-  function developCost(s){ let mult=1+(s?.level||0)*.3; if(hasTech('orbitalIndustry')) mult*=.85; if(hasTech('modularFoundries')) mult*=.90; if(hasTech('nanoforge')) mult*=.88; if(hasTech('orbitalElevators')&&(s?.pop||0)>=3) mult*=.90; return {materials:Math.round(20*mult), energy:Math.round(5*mult)}; }
+  function colonizeCost(){ let discount=(hasTech('terraform')||hasTech('charter'))?.82:1; ['outpostProtocols','migrationShips','autonomousColonies','symbioticHabitats'].forEach(id=>{ if(hasTech(id)) discount*=.92; }); discount*=Math.pow(.985, techCount('P','explore')+techCount('P','bio')); const sprawl=1+colonyCount('P')*0.14; return {materials:Math.round(22*discount*sprawl), influence:Math.round(10*discount*sprawl), food:Math.max(2,Math.round(5*discount*Math.min(sprawl,1.6))), credits:Math.round(6*discount*sprawl)}; }
+  function developCost(s){ let mult=1+(s?.level||0)*.34; if(hasTech('orbitalIndustry')) mult*=.85; if(hasTech('modularFoundries')) mult*=.90; if(hasTech('nanoforge')) mult*=.88; if(hasTech('orbitalElevators')&&(s?.pop||0)>=3) mult*=.90; return {materials:Math.round(20*mult), energy:Math.round(5*mult), credits:Math.round(3*mult)}; }
   function starChargeCost(s){ let energy=18+s.level*5, crystal=s.level>1?1:0; ['solarCollectors','fuelDepots','dysonFrames','stellarDominion'].forEach(id=>{ if(hasTech(id)) energy=Math.max(5,Math.round(energy*.88)); }); if(hasTech('wormholeMath')) crystal=Math.max(0, crystal-1); return {energy, crystal}; }
   function upgradeCost(id){ const u=UPGRADES[id]; const lv=player().upgrades[id]||0; const out={}; Object.entries(u.cost).forEach(([k,v])=>out[k]=Math.round(v*(1+lv*.55))); return out; }
 
@@ -809,7 +849,7 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
   function loseShips(f, ratio){ ['scout','frigate','destroyer','carrier'].forEach(k=>{ const n=f.ships[k]||0; if(n>0 && Math.random()<ratio) f.ships[k]=Math.max(0,n-1); }); }
   function eliminateEmpire(enemy){ enemy.eliminated=true; state.systems.forEach(s=>{ if(s.owner===enemy.id){ s.owner='P'; s.explored=true; } }); }
 
-  function endTurn(){ if(!tutorialAllows('endTurn')) return toast('今はガイドされた操作を先に行ってください。'); addRes(totalIncome('P'),'P'); growOwned('P'); const events=cpuTurn(); state.turn++; state.ap=state.maxAp; if(state.tutorial.active){ if(state.tutorial.step===4){ state.tutorial.step=5; addRes({research:18,materials:30,energy:16,credits:12},'P'); } else if(state.tutorial.step===8){ state.tutorial.step=9; state.selectedId=3; centerOn(system(3),1.95); addRes({materials:35,influence:20,food:12},'P'); } else if(state.tutorial.step===13){ completeTutorial(); } } state.replay=events; replayIndex=0; addLog(`ターン${state.turn}開始。資源収入を獲得。`, ''); if(!events.length) focusNextActionTarget(); render(); }
+  function endTurn(){ if(!tutorialAllows('endTurn')) return toast('今はガイドされた操作を先に行ってください。'); addRes(totalIncome('P'),'P'); growOwned('P'); const events=cpuTurn(); state.turn++; state.ap=state.maxAp; if(state.tutorial.active){ if(state.tutorial.step===4){ state.tutorial.step=5; addRes({research:14,materials:24,energy:12,credits:8},'P'); } else if(state.tutorial.step===8){ state.tutorial.step=9; state.selectedId=3; centerOn(system(3),1.95); addRes({materials:26,influence:14,food:8},'P'); } else if(state.tutorial.step===13){ completeTutorial(); } } state.replay=events; replayIndex=0; addLog(`ターン${state.turn}開始。資源収入を獲得。`, ''); if(!events.length) focusAfterTurn(); render(); }
   function growOwned(fid){ owned(fid).forEach(s=>{ if(s.kind!=='star' && (faction(fid).resources.food||0)>10 && s.pop<14) s.pop += faction(fid).techs.includes('bio') ? .32 : .18; }); }
   function cpuTurn(){
     const events=[];
@@ -863,6 +903,15 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
   function techTierSum(fid, branch){ return availableTechs(fid).filter(t=>faction(fid)?.techs.includes(t.id) && (!branch || techBranch(t)===branch)).reduce((a,t)=>a+(t.tier||1),0); }
   function researched(id){ const t=TECHS.find(x=>x.id===id); return t ? player().techs.includes(id) : false; }
   function techDependents(id){ return availableTechs('P').filter(t=>(t.req||[]).includes(id)); }
+  // Pick the single best research the player can afford right now, to spotlight as "next recommended".
+  function recommendedTech(){
+    const p=player(); if(!p) return null;
+    const avail=availableTechs('P').filter(t=>!p.techs.includes(t.id) && (t.req||[]).every(r=>p.techs.includes(r)) && p.resources.research>=t.cost && state.ap>0);
+    if(!avail.length) return null;
+    const priority=['survey','colonyAdmin','orbitalIndustry','stellarHarness','logistics','warpDrive','planetaryGuns','capitalProtocol'];
+    const score=t=>{ let s=0; const pi=priority.indexOf(t.id); if(pi>=0) s+=400-pi*30; s+=techDependents(t.id).length*10; s-=(t.tier||1)*18; s-=t.cost*0.12; return s; };
+    return avail.slice().sort((a,b)=>score(b)-score(a))[0];
+  }
   function techEffectSummary(t){
     const b=techBranch(t);
     const map={
@@ -897,6 +946,7 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
 
   function techHtml(){
     const p=player();
+    const rec = state?.tutorial?.active ? null : recommendedTech();
     const all=availableTechs('P').slice().sort((a,b)=>(techBranch(a).localeCompare(techBranch(b)))||((a.tier||1)-(b.tier||1))||(a.cost-b.cost)||a.name.localeCompare(b.name,'ja'));
     const branchIds=['explore','industry','science','warp','military','defense','economy','bio','void','final'];
     const tiers=[1,2,3,4,5];
@@ -908,7 +958,8 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
       const can=!bought&&!locked&&p.resources.research>=t.cost&&state.ap>0&&tutorialAllows('research',t.id);
       const short=(techEffectSummary(t)||t.text||'').replace(/<[^>]+>/g,'').split('。')[0].slice(0,10);
       const tutGlow=state?.tutorial?.active&&state.tutorial.step===5&&t.id==='survey'&&can?' tutorial-glow':'';
-      return `<button class="tech-mini-node ${meta.tone} ${bought?'done':locked?'locked':can?'can':'open'}${tutGlow}" data-tech="${t.id}" type="button"><img src="${icon(t.icon||meta.icon)}" alt=""><b>${t.name}</b><span>${short}</span><em>研${t.cost}</em></button>`;
+      const recCls=rec&&rec.id===t.id?' recommended':'';
+      return `<button class="tech-mini-node ${meta.tone} ${bought?'done':locked?'locked':can?'can':'open'}${tutGlow}${recCls}" data-tech="${t.id}"${recCls?' data-recommended="1"':''} type="button"><img src="${icon(t.icon||meta.icon)}" alt=""><b>${t.name}</b><span>${short}</span><em>研${t.cost}</em></button>`;
     };
     let html=`<section class="panel-section tech-intro compact v15"><h2>研究ツリー</h2><div class="tech-summary-row">${researchOnlyRibbon('P')}<b>${done}/${all.length}</b><span>研究済み</span><b>${canCount}</b><span>可</span></div><p>横に進むほど高位研究。項目をタップすると詳細・前提・解放先・実行ボタンを開きます。</p></section>`;
     html+=`<div class="tech-map-v15-wrap"><div class="tech-map-v15">`;
@@ -965,7 +1016,22 @@ function handleAction(action,arg){ if(!tutorialAllows(action,arg)){ toast('チ�
   }
   function techBranchLabel(b){ return ({explore:'探索',industry:'工業',science:'研究',warp:'恒星',military:'艦隊',defense:'防衛',economy:'交易',bio:'生態',void:'虚空',final:'最終'})[b]||b; }
   function bindTechButtons(root){ root.querySelectorAll('[data-tech]').forEach(btn=>btn.addEventListener('click',()=>showTechDetail(btn.dataset.tech))); }
-function openMobilePage(page){ modalDetail=null; modalPage=page; const title={empire:'艦隊',tech:'研究',factions:'勢力比較',codex:'説明',log:'ログ'}[page]||'情報'; const html=page==='empire'?empireHtml():page==='tech'?techHtml():page==='factions'?factionsHtml():page==='codex'?codexHtml():logHtml(); showModal(`<h2>${title}</h2>${html}`,true); bindActionButtons($('modalBody')); bindTechButtons($('modalBody')); bindFactionButtons($('modalBody')); }
+function openMobilePage(page){ modalDetail=null; modalPage=page; const title={empire:'艦隊',tech:'研究',factions:'勢力比較',codex:'説明',log:'ログ'}[page]||'情報'; const html=page==='empire'?empireHtml():page==='tech'?techHtml():page==='factions'?factionsHtml():page==='codex'?codexHtml():logHtml(); showModal(`<h2>${title}</h2>${html}`,true); bindActionButtons($('modalBody')); bindTechButtons($('modalBody')); bindFactionButtons($('modalBody')); if(page==='tech') requestAnimationFrame(()=>setupTechMapScroll()); }
+  // Keep the research tree where the player left it across re-renders; on a fresh open, frame the recommended node.
+  function setupTechMapScroll(){
+    const wrap=$('modalBody')?.querySelector('.tech-map-v15-wrap');
+    if(!wrap) return;
+    if(techScroll){ wrap.scrollLeft=techScroll.left; wrap.scrollTop=techScroll.top; }
+    else { scrollTechToRecommended(wrap); techScroll={left:wrap.scrollLeft, top:wrap.scrollTop}; }
+    wrap.addEventListener('scroll', ()=>{ techScroll={left:wrap.scrollLeft, top:wrap.scrollTop}; }, {passive:true});
+  }
+  function scrollTechToRecommended(wrap){
+    const target=wrap.querySelector('.tech-mini-node.recommended') || wrap.querySelector('.tech-mini-node.can');
+    if(!target) return;
+    const wr=wrap.getBoundingClientRect(), nr=target.getBoundingClientRect();
+    wrap.scrollLeft=Math.max(0, wrap.scrollLeft+(nr.left-wr.left)-wrap.clientWidth/2+nr.width/2);
+    wrap.scrollTop=Math.max(0, wrap.scrollTop+(nr.top-wr.top)-wrap.clientHeight/2+nr.height/2);
+  }
 
   function showResourceHelp(k){ const r=RESOURCES[k], inc=totalIncome('P')[k]||0; showModal(`<h2>${r.label}</h2><div class="help-grid"><div><h3>何に使う？</h3><p>${r.use}</p></div><div><h3>どう増える？</h3><p>${r.gain}</p></div><div><h3>現在の収入</h3><p>毎ターン ${signFmt(inc)}。植民地の維持費でマイナスになることもあります。</p></div><div><h3>戦略メモ</h3><p>${r.advice}</p></div></div>`); }
   function showApHelp(){ showModal(`<h2>APとは？</h2><p>APは1ターンにできる主要行動数です。探索・植民・開発・研究・艦船建造・艦隊強化・恒星チャージ・侵攻で1ずつ使います。</p><p>序盤は3AP。技術「星域兵站」で4APになります。</p>`); }
@@ -981,7 +1047,7 @@ function openMobilePage(page){ modalDetail=null; modalPage=page; const title={em
     $('startBtn').onclick=startNew; $('continueBtn').onclick=continueGame; $('randomSeedBtn').onclick=()=>{$('seedInput').value=randomSeedText();};
     $('homeBtn').onclick=()=>centerOn(system(player().home),1.8); $('allMapBtn').onclick=fullMap; $('zoomInBtn').onclick=()=>{camera.zoom=clamp(camera.zoom*1.18,.65,5); draw();}; $('zoomOutBtn').onclick=()=>{camera.zoom=clamp(camera.zoom/1.18,.65,5); draw();};
     const hb=$('helpBtn'); if(hb) hb.onclick=showHelp; $('turnChip').onclick=showApHelp; $('saveBtn').onclick=()=>{save(); toast('保存しました。次回は「続きから」で再開できます。');}; $('endTurnBtn').onclick=endTurn; $('modalClose').onclick=()=>{ if(modalDetail==='techDetail' && modalPage==='tech'){ modalDetail=null; openMobilePage('tech'); return; } modalDetail=null; modalPage=null; $('infoModal').close();}; $('sheetToggle').onclick=()=>{state.sheetCollapsed=!state.sheetCollapsed; renderPanel(); save();};
-    document.querySelectorAll('#sideMenu [data-page]').forEach(b=>b.onclick=()=>openMobilePage(b.dataset.page));
+    document.querySelectorAll('#sideMenu [data-page]').forEach(b=>b.onclick=()=>{ if(b.dataset.page==='tech') techScroll=null; openMobilePage(b.dataset.page); });
     canvas=$('starCanvas');
     canvas.addEventListener('pointerdown',canvasPointerDown,{passive:false}); canvas.addEventListener('pointermove',canvasPointerMove,{passive:false}); canvas.addEventListener('pointerup',canvasPointerUp); canvas.addEventListener('pointercancel',canvasPointerCancel); canvas.addEventListener('lostpointercapture',canvasPointerCancel);
     canvas.addEventListener('touchstart',canvasTouchStart,{passive:false}); canvas.addEventListener('touchmove',canvasTouchMove,{passive:false}); canvas.addEventListener('touchend',canvasTouchEnd,{passive:false}); canvas.addEventListener('touchcancel',canvasTouchEnd,{passive:false});
@@ -998,5 +1064,5 @@ function openMobilePage(page){ modalDetail=null; modalPage=page; const title={em
   resizeCanvas();
   preload().then(()=>{ draw(); render(); });
 
-  window.SFDebug = { getState:()=>state, start:()=>{startNew(); return state;}, select:(id)=>{state.selectedId=id; advanceTutorialOnSelect(system(id)); render();}, action:handleAction, endTurn, connected:()=>galaxyIsConnected(), totalSystems:()=>state?.systems.length||0, income:()=>totalIncome('P') };
+  window.SFDebug = { getState:()=>state, start:()=>{startNew(); return state;}, select:(id)=>{state.selectedId=id; advanceTutorialOnSelect(system(id)); render();}, action:handleAction, endTurn, connected:()=>galaxyIsConnected(), totalSystems:()=>state?.systems.length||0, income:()=>totalIncome('P'), rec:()=>recommendedTech(), colonizeCost:()=>colonizeCost() };
 })();

@@ -629,6 +629,9 @@ html,body{-webkit-text-size-adjust:100%;}
 .tech-map-v15 .tech-mini-node.can{border-color:rgba(110,231,255,.96);box-shadow:0 0 0 2px rgba(110,231,255,.13),0 4px 10px rgba(0,0,0,.22)}
 .tech-map-v15 .tech-mini-node.locked{opacity:.68;background:rgba(19,22,34,.92);filter:saturate(.75)}
 .tech-map-v15 .tech-mini-node.open{border-color:rgba(255,211,122,.38)}
+@keyframes rec-pulse{0%,100%{box-shadow:0 0 0 2px rgba(255,211,122,.55),0 0 12px rgba(255,211,122,.32)}50%{box-shadow:0 0 0 4px rgba(255,211,122,.92),0 0 22px rgba(255,211,122,.6)}}
+.tech-map-v15 .tech-mini-node.recommended{border-color:rgba(255,211,122,.98)!important;background:rgba(40,30,8,.9);animation:rec-pulse 1.35s ease-in-out infinite;position:relative;z-index:5;overflow:visible}
+.tech-map-v15 .tech-mini-node.recommended::after{content:'おすすめ';position:absolute;top:-7px;right:-3px;font-size:7px;font-weight:900;color:#06111f;background:linear-gradient(135deg,#ffd37a,#ffb347);border-radius:7px;padding:1px 4px;line-height:1.2;box-shadow:0 2px 6px rgba(0,0,0,.4);pointer-events:none}
 .tech-map-v15 .tech-empty{display:flex;align-items:center;justify-content:center;min-height:31px;font-size:10px;color:rgba(210,230,255,.35)}
 .tech-detail-actions.top-actions{margin-top:10px;display:grid;grid-template-columns:1fr;}
 .tech-detail-actions.top-actions .primary-btn{min-height:46px;}
