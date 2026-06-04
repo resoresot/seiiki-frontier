@@ -1,11 +1,16 @@
-星域フロンティア patch v18
+星域フロンティア patch v19
 
-内容:
-- 開始時に銀河生成が止まる原因を修正
-- buildCluster() 内の衛星生成で、まだ作成前の global state 経由 system(pid) を参照していた箇所を、生成中の systems[pid] 参照に変更
+目的:
+- 「新しい銀河を開始」を押しても始まらない不具合の修正。
 
-変更ファイル:
-- js/game.js
+原因:
+- createGame() の中で buildCluster() 実行中、まだ state が作られていない段階で system(pid) を呼んでいた。
+- system() は state.systems を参照するため、ゲーム開始時に例外が出て停止する。
 
-適用方法:
-- 差分ZIP対応済み sf-deploy で反映
+修正:
+- buildCluster() の衛星生成処理内だけ、system(pid) ではなく生成中配列 systems[pid] を参照するよう変更。
+
+確認:
+- node --check js/game.js: OK
+- 疑似DOMスモーク: load / start / galaxy connected / select tutorial moon / explore / endTurn 呼び出しまで OK
+- 画像・assets は変更なし。
