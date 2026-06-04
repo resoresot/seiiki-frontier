@@ -657,3 +657,14 @@ html,body{-webkit-text-size-adjust:100%;}
   position:relative;
   z-index:22;
 }
+
+/* tech victory synchronization project panel */
+.panel-section.tech-project{
+  border:1px solid rgba(110,231,255,.5);
+  background:linear-gradient(135deg,rgba(13,40,74,.92),rgba(20,24,56,.92));
+  border-radius:16px;
+}
+.panel-section.tech-project h2{color:#9fe9ff}
+.panel-section.tech-project .missing-note{color:#ffd37a;font-size:.82rem}
+.panel-section.tech-project .good-note{color:#70f2a7;font-weight:800}
+.primary-btn.disabled{opacity:.45;filter:grayscale(.4)}
